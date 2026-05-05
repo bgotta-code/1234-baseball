@@ -16,6 +16,8 @@ export interface GameState {
   pitcherChoice: number | null;
   batterChoice: number | null;
   phase: 'pitch' | 'swing';
+  lineScore: [number[], number[]]; // per-inning runs: [away[], home[]]
+  halfInningStartScores: [number, number]; // scores at the start of this half-inning
 }
 
 export function initState(): GameState {
@@ -28,6 +30,8 @@ export function initState(): GameState {
     pitcherChoice: null,
     batterChoice: null,
     phase: 'pitch',
+    lineScore: [[], []],
+    halfInningStartScores: [0, 0],
   };
 }
 
@@ -94,13 +98,28 @@ export function resolveAtBat(state: GameState): AtBatResult {
 }
 
 export function nextHalf(state: GameState): { newState: GameState; gameOver: boolean } {
+  // Record runs scored this half-inning in the linescore
+  const runsThisHalf = state.scores[state.half] - state.halfInningStartScores[state.half];
+  const newLineScore: [number[], number[]] = [
+    [...state.lineScore[0]],
+    [...state.lineScore[1]],
+  ];
+  newLineScore[state.half].push(runsThisHalf);
+
   let { half, inning } = state;
   half++;
   if (half > 1) { half = 0; inning++; }
 
   if (inning > INNINGS) {
     return {
-      newState: { ...state, half, inning, outs: 0, bases: [false, false, false] },
+      newState: {
+        ...state,
+        half,
+        inning,
+        outs: 0,
+        bases: [false, false, false],
+        lineScore: newLineScore,
+      },
       gameOver: true,
     };
   }
@@ -115,6 +134,8 @@ export function nextHalf(state: GameState): { newState: GameState; gameOver: boo
       pitcherChoice: null,
       batterChoice: null,
       phase: 'pitch',
+      lineScore: newLineScore,
+      halfInningStartScores: [...state.scores] as [number, number],
     },
     gameOver: false,
   };
