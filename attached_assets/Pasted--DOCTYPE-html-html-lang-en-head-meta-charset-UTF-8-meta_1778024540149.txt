@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>1,2,3,4 Baseball</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:#f5f5f0;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;display:flex;justify-content:center;padding:1rem;}
+.wrap{max-width:460px;width:100%;}
+h1{font-size:20px;font-weight:500;text-align:center;margin:0.75rem 0 1rem;color:#2c2c2a;}
+.board{background:#e8e8e2;border:0.5px solid #ccc;border-radius:12px;padding:1rem;margin-bottom:1rem;}
+.score-teams{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px;}
+.team-box{background:#fff;border:0.5px solid #ddd;border-radius:8px;padding:8px 12px;text-align:center;}
+.team-label{font-size:12px;color:#888;margin-bottom:2px;}
+.team-score{font-size:28px;font-weight:500;color:#2c2c2a;}
+.inning-row{display:flex;justify-content:space-between;align-items:center;font-size:13px;color:#888;margin-bottom:10px;}
+.outs-circles{display:flex;gap:8px;}
+.out-circle{width:14px;height:14px;border-radius:50%;border:1.5px solid #aaa;background:transparent;transition:background 0.2s;}
+.out-circle.on{background:#E24B4A;border-color:#A32D2D;}
+.diamond-wrap{display:flex;justify-content:center;margin:4px 0 0;}
+.action-box{background:#fff;border:0.5px solid #ddd;border-radius:12px;padding:1rem;margin-bottom:1rem;}
+.action-label{font-size:13px;color:#888;margin-bottom:10px;}
+.finger-btns{display:flex;gap:8px;justify-content:center;margin-bottom:12px;}
+.fbutton{width:56px;height:56px;border-radius:8px;border:0.5px solid #ccc;background:#f0f0ea;font-size:20px;font-weight:500;cursor:pointer;color:#2c2c2a;transition:background 0.1s;}
+.fbutton:hover{background:#fff;}
+.fbutton.selected{background:#deeaf8;border-color:#185FA5;color:#0C447C;}
+.pitch-btn{width:100%;padding:12px;border-radius:8px;border:0.5px solid #ccc;background:#f0f0ea;font-size:16px;font-weight:500;cursor:pointer;color:#2c2c2a;}
+.pitch-btn:hover{background:#fff;}
+.pitch-btn:disabled{opacity:0.4;cursor:default;}
+.result-box{border-radius:8px;padding:10px 14px;margin-bottom:1rem;font-size:15px;font-weight:500;text-align:center;}
+.result-box.hit{background:#EAF3DE;color:#3B6D11;border:0.5px solid #97C459;}
+.result-box.out{background:#FCEBEB;color:#A32D2D;border:0.5px solid #F09595;}
+.reveal-box{border-radius:8px;padding:8px 14px;margin-bottom:1rem;font-size:14px;font-weight:500;text-align:center;background:#FAEEDA;color:#854F0B;border:0.5px solid #EF9F27;transition:opacity 0.5s;}
+.status{font-size:13px;color:#888;text-align:center;margin-bottom:8px;min-height:18px;}
+.ad-box{background:#f0f0ea;border:0.5px solid #ddd;border-radius:12px;padding:1.5rem 1rem;margin-bottom:1rem;text-align:center;}
+.ad-label{font-size:10px;color:#aaa;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px;}
+.ad-placeholder{background:#fff;border:0.5px solid #ddd;border-radius:8px;height:120px;display:flex;align-items:center;justify-content:center;margin-bottom:12px;}
+.ad-placeholder-text{font-size:13px;color:#aaa;}
+.ad-countdown{font-size:13px;color:#888;}
+.ad-countdown span{font-weight:500;color:#2c2c2a;}
+.gameover{text-align:center;padding:1.5rem;}
+.gameover h2{font-size:22px;font-weight:500;margin-bottom:8px;color:#2c2c2a;}
+.gameover p{font-size:15px;color:#888;margin-bottom:12px;}
+.restart{padding:10px 24px;border-radius:8px;border:0.5px solid #ccc;background:#f0f0ea;font-size:15px;cursor:pointer;color:#2c2c2a;}
+.restart:hover{background:#fff;}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>⚾ 1,2,3,4 Baseball</h1>
+  <div class="board">
+    <div class="score-teams">
+      <div class="team-box">
+        <div class="team-label">Away</div>
+        <div class="team-score" id="score-away">0</div>
+      </div>
+      <div class="team-box">
+        <div class="team-label">Home</div>
+        <div class="team-score" id="score-home">0</div>
+      </div>
+    </div>
+    <div class="inning-row">
+      <span id="inning-label">Inning 1 — Top</span>
+      <div class="outs-circles">
+        <div class="out-circle" id="oc0"></div>
+        <div class="out-circle" id="oc1"></div>
+        <div class="out-circle" id="oc2"></div>
+      </div>
+    </div>
+    <div class="diamond-wrap">
+      <svg width="130" height="115" viewBox="0 0 130 115" overflow="visible">
+        <polygon id="base-second" points="65,8 83,26 65,44 47,26" fill="#ccc" stroke="#999" stroke-width="1.5"/>
+        <polygon id="base-third"  points="8,60 26,42 44,60 26,78" fill="#ccc" stroke="#999" stroke-width="1.5"/>
+        <polygon id="base-first"  points="86,60 104,42 122,60 104,78" fill="#ccc" stroke="#999" stroke-width="1.5"/>
+        <polygon points="65,76 83,94 65,112 47,94" fill="#999" stroke="#777" stroke-width="1.5"/>
+        <circle id="runner-first"  cx="104" cy="60" r="7" fill="#378ADD" stroke="#185FA5" stroke-width="1.5" opacity="0"/>
+        <circle id="runner-second" cx="65"  cy="26" r="7" fill="#378ADD" stroke="#185FA5" stroke-width="1.5" opacity="0"/>
+        <circle id="runner-third"  cx="26"  cy="60" r="7" fill="#378ADD" stroke="#185FA5" stroke-width="1.5" opacity="0"/>
+      </svg>
+    </div>
+  </div>
+
+  <div id="result-box" class="result-box" style="display:none;"></div>
+  <div id="reveal-box" class="reveal-box" style="display:none;"></div>
+  <div class="status" id="status-msg">Away pitcher — choose your pitch</div>
+
+  <div class="action-box" id="action-area">
+    <div class="action-label" id="action-label">Pitcher — choose your pitch (hidden from batter)</div>
+    <div class="finger-btns">
+      <button class="fbutton" onclick="selectFinger(1)">1</button>
+      <button class="fbutton" onclick="selectFinger(2)">2</button>
+      <button class="fbutton" onclick="selectFinger(3)">3</button>
+      <button class="fbutton" onclick="selectFinger(4)">4</button>
+    </div>
+    <button class="pitch-btn" id="submit-btn" onclick="submitChoice()" disabled>Pitch</button>
+  </div>
+
+  <div id="ad-area" style="display:none;" class="ad-box">
+    <div class="ad-label">Advertisement</div>
+    <div class="ad-placeholder">
+      <div class="ad-placeholder-text">Your ad here</div>
+    </div>
+    <div class="ad-countdown">Next inning in <span id="ad-timer">15</span> seconds</div>
+  </div>
+
+  <div id="gameover-area" style="display:none;" class="gameover">
+    <h2 id="go-title"></h2>
+    <p id="go-body"></p>
+    <button class="restart" onclick="restartGame()">New Game</button>
+  </div>
+</div>
+
+<script>
+const INNINGS=9;
+const hitNames={1:'Single',2:'Double',3:'Triple',4:'Home run!'};
+let state={};
+let audioCtx=null;
+let audioUnlocked=false;
+let adInterval=null;
+
+function unlockAudio(){
+  if(audioUnlocked) return;
+  try{
+    if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+    if(audioCtx.state==='suspended') audioCtx.resume();
+    const buf=audioCtx.createBuffer(1,1,audioCtx.sampleRate);
+    const src=audioCtx.createBufferSource();
+    src.buffer=buf; src.connect(audioCtx.destination); src.start(0);
+    audioUnlocked=true;
+  }catch(e){}
+}
+document.addEventListener('touchstart',unlockAudio,false);
+document.addEventListener('touchend',unlockAudio,false);
+document.addEventListener('click',unlockAudio,false);
+
+function getCtx(){
+  if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)();
+  if(audioCtx.state==='suspended') audioCtx.resume();
+  return audioCtx;
+}
+
+function playSwoosh(){
+  try{
+    const ctx=getCtx(),t=ctx.currentTime;
+    const bufLen=Math.floor(ctx.sampleRate*0.18);
+    const buf=ctx.createBuffer(1,bufLen,ctx.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<bufLen;i++) d[i]=Math.random()*2-1;
+    const src=ctx.createBufferSource(); src.buffer=buf;
+    const bp=ctx.createBiquadFilter(); bp.type='bandpass';
+    bp.frequency.setValueAtTime(3000,t);
+    bp.frequency.exponentialRampToValueAtTime(400,t+0.18);
+    bp.Q.value=1.2;
+    const gain=ctx.createGain();
+    gain.gain.setValueAtTime(0.3,t);
+    gain.gain.exponentialRampToValueAtTime(0.001,t+0.18);
+    src.connect(bp); bp.connect(gain); gain.connect(ctx.destination);
+    src.start(t); src.stop(t+0.2);
+  }catch(e){}
+}
+
+function playBatCrack(intensity){
+  try{
+    const ctx=getCtx(),t=ctx.currentTime;
+    const bufLen=Math.floor(ctx.sampleRate*0.12);
+    const buf=ctx.createBuffer(1,bufLen,ctx.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<bufLen;i++) d[i]=Math.random()*2-1;
+    const src=ctx.createBufferSource(); src.buffer=buf;
+    const bp=ctx.createBiquadFilter(); bp.type='bandpass';
+    bp.frequency.value=2200+intensity*400; bp.Q.value=0.8;
+    const cg=ctx.createGain();
+    cg.gain.setValueAtTime(0.9,t);
+    cg.gain.exponentialRampToValueAtTime(0.001,t+0.08);
+    src.connect(bp); bp.connect(cg); cg.connect(ctx.destination);
+    src.start(t); src.stop(t+0.12);
+    const osc=ctx.createOscillator(),tg=ctx.createGain();
+    osc.type='sine';
+    osc.frequency.setValueAtTime(180+intensity*20,t);
+    osc.frequency.exponentialRampToValueAtTime(60,t+0.15);
+    tg.gain.setValueAtTime(0.6,t);
+    tg.gain.exponentialRampToValueAtTime(0.001,t+0.18);
+    osc.connect(tg); tg.connect(ctx.destination);
+    osc.start(t); osc.stop(t+0.2);
+  }catch(e){}
+}
+
+function playCrowdRoar(intensity,delay){
+  try{
+    const ctx=getCtx();
+    const duration=1.5+intensity*1.2;
+    const bufLen=Math.floor(ctx.sampleRate*duration);
+    const buf=ctx.createBuffer(2,bufLen,ctx.sampleRate);
+    for(let ch=0;ch<2;ch++){
+      const d=buf.getChannelData(ch); let lp=0;
+      for(let i=0;i<bufLen;i++){lp=lp*0.92+(Math.random()*2-1)*0.08; d[i]=lp;}
+    }
+    const src=ctx.createBufferSource(); src.buffer=buf;
+    const gain=ctx.createGain();
+    const t=ctx.currentTime+delay;
+    gain.gain.setValueAtTime(0.001,t);
+    gain.gain.linearRampToValueAtTime(0.35+intensity*0.15,t+0.3);
+    gain.gain.linearRampToValueAtTime(0.25+intensity*0.1,t+duration*0.5);
+    gain.gain.exponentialRampToValueAtTime(0.001,t+duration);
+    const hp=ctx.createBiquadFilter(); hp.type='highpass'; hp.frequency.value=400;
+    src.connect(hp); hp.connect(gain); gain.connect(ctx.destination);
+    src.start(t); src.stop(t+duration);
+  }catch(e){}
+}
+
+function playCrowdGroan(){
+  try{
+    const ctx=getCtx(),t=ctx.currentTime;
+    for(let v=0;v<6;v++){
+      const osc=ctx.createOscillator(),gain=ctx.createGain();
+      const det=(Math.random()-0.5)*40;
+      osc.type='sine';
+      osc.frequency.setValueAtTime(320+det,t+0.05);
+      osc.frequency.linearRampToValueAtTime(200+det*0.5,t+0.7);
+      gain.gain.setValueAtTime(0,t);
+      gain.gain.linearRampToValueAtTime(0.06,t+0.1);
+      gain.gain.linearRampToValueAtTime(0.05,t+0.5);
+      gain.gain.exponentialRampToValueAtTime(0.001,t+0.9);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(t); osc.stop(t+1.0);
+    }
+    const bufLen=Math.floor(ctx.sampleRate*0.8);
+    const buf=ctx.createBuffer(1,bufLen,ctx.sampleRate);
+    const d=buf.getChannelData(0); let lp=0;
+    for(let i=0;i<bufLen;i++){lp=lp*0.93+(Math.random()*2-1)*0.07; d[i]=lp;}
+    const src=ctx.createBufferSource(); src.buffer=buf;
+    const ng=ctx.createGain();
+    ng.gain.setValueAtTime(0.001,t);
+    ng.gain.linearRampToValueAtTime(0.12,t+0.15);
+    ng.gain.exponentialRampToValueAtTime(0.001,t+0.8);
+    src.connect(ng); ng.connect(ctx.destination);
+    src.start(t); src.stop(t+0.85);
+  }catch(e){}
+}
+
+function playCrowdCheer(){
+  try{
+    const ctx=getCtx(),t=ctx.currentTime;
+    for(let v=0;v<5;v++){
+      const osc=ctx.createOscillator(),gain=ctx.createGain();
+      const det=(Math.random()-0.5)*60;
+      osc.type='sine';
+      osc.frequency.setValueAtTime(250+det,t);
+      osc.frequency.linearRampToValueAtTime(420+det,t+0.35);
+      gain.gain.setValueAtTime(0,t);
+      gain.gain.linearRampToValueAtTime(0.07,t+0.08);
+      gain.gain.linearRampToValueAtTime(0.05,t+0.4);
+      gain.gain.exponentialRampToValueAtTime(0.001,t+0.7);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(t); osc.stop(t+0.75);
+    }
+    const bufLen=Math.floor(ctx.sampleRate*0.6);
+    const buf=ctx.createBuffer(1,bufLen,ctx.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<bufLen;i++) d[i]=Math.random()*2-1;
+    const src=ctx.createBufferSource(); src.buffer=buf;
+    const bp=ctx.createBiquadFilter(); bp.type='bandpass'; bp.frequency.value=1800; bp.Q.value=0.6;
+    const ng=ctx.createGain();
+    ng.gain.setValueAtTime(0.001,t);
+    ng.gain.linearRampToValueAtTime(0.18,t+0.1);
+    ng.gain.exponentialRampToValueAtTime(0.001,t+0.6);
+    src.connect(bp); bp.connect(ng); ng.connect(ctx.destination);
+    src.start(t); src.stop(t+0.65);
+  }catch(e){}
+}
+
+function playGloveThud(){
+  try{
+    const ctx=getCtx(),t=ctx.currentTime;
+    const bufLen=Math.floor(ctx.sampleRate*0.15);
+    const buf=ctx.createBuffer(1,bufLen,ctx.sampleRate);
+    const d=buf.getChannelData(0);
+    for(let i=0;i<bufLen;i++) d[i]=Math.random()*2-1;
+    const src=ctx.createBufferSource(); src.buffer=buf;
+    const lp=ctx.createBiquadFilter(); lp.type='lowpass'; lp.frequency.value=300;
+    const gain=ctx.createGain();
+    gain.gain.setValueAtTime(0.5,t);
+    gain.gain.exponentialRampToValueAtTime(0.001,t+0.12);
+    src.connect(lp); lp.connect(gain); gain.connect(ctx.destination);
+    src.start(t); src.stop(t+0.15);
+  }catch(e){}
+}
+
+function playHomeRunFanfare(){
+  try{
+    const ctx=getCtx();
+    [523,659,784,1047,1319].forEach((freq,i)=>{
+      const t=ctx.currentTime+i*0.13;
+      const osc=ctx.createOscillator(),gain=ctx.createGain();
+      osc.type='square'; osc.frequency.value=freq;
+      gain.gain.setValueAtTime(0.18,t);
+      gain.gain.exponentialRampToValueAtTime(0.001,t+0.22);
+      osc.connect(gain); gain.connect(ctx.destination);
+      osc.start(t); osc.stop(t+0.25);
+    });
+  }catch(e){}
+}
+
+function playHitSound(dist){
+  playBatCrack(dist);
+  if(dist===4){playHomeRunFanfare(); playCrowdRoar(4,0.15);}
+  else playCrowdRoar(dist,0.1);
+}
+
+function playOutSound(){
+  playGloveThud();
+  if(state.half===0) playCrowdCheer();
+  else playCrowdGroan();
+}
+
+function showReveal(pitcherNum){
+  const rb=document.getElementById('reveal-box');
+  rb.textContent='Pitcher threw a '+pitcherNum;
+  rb.style.display='block';
+  rb.style.opacity='1';
+  setTimeout(()=>{
+    rb.style.opacity='0';
+    setTimeout(()=>{rb.style.display='none';},500);
+  },2000);
+}
+
+function showAd(callback){
+  document.getElementById('action-area').style.display='none';
+  document.getElementById('result-box').style.display='none';
+  document.getElementById('reveal-box').style.display='none';
+  document.getElementById('status-msg').textContent='';
+  const adArea=document.getElementById('ad-area');
+  const timerEl=document.getElementById('ad-timer');
+  adArea.style.display='block';
+  let count=15;
+  timerEl.textContent=count;
+  if(adInterval) clearInterval(adInterval);
+  adInterval=setInterval(()=>{
+    count--;
+    timerEl.textContent=count;
+    if(count<=0){
+      clearInterval(adInterval);
+      adArea.style.display='none';
+      callback();
+    }
+  },1000);
+}
+
+function initState(){
+  state={scores:[0,0],inning:1,half:0,outs:0,
+    bases:[false,false,false],
+    pitcherChoice:null,batterChoice:null,phase:'pitch'};
+}
+
+function restartGame(){
+  if(adInterval) clearInterval(adInterval);
+  initState();
+  document.getElementById('gameover-area').style.display='none';
+  document.getElementById('ad-area').style.display='none';
+  document.getElementById('action-area').style.display='block';
+  document.getElementById('result-box').style.display='none';
+  document.getElementById('reveal-box').style.display='none';
+  render();
+}
+
+function selectFinger(n){
+  if(state.phase==='pitch') state.pitcherChoice=n;
+  else state.batterChoice=n;
+  document.querySelectorAll('.fbutton').forEach((b,i)=>b.classList.toggle('selected',i+1===n));
+  document.getElementById('submit-btn').disabled=false;
+}
+
+function submitChoice(){
+  if(state.phase==='pitch'){
+    playSwoosh();
+    state.phase='swing';
+    document.querySelectorAll('.fbutton').forEach(b=>b.classList.remove('selected'));
+    document.getElementById('submit-btn').disabled=true;
+    document.getElementById('action-label').textContent='Batter — guess the pitch';
+    document.getElementById('submit-btn').textContent='Swing';
+    document.getElementById('status-msg').textContent='Hand the device to the batter';
+    document.getElementById('result-box').style.display='none';
+  } else {
+    resolveAtBat();
+  }
+}
+
+function resolveAtBat(){
+  const p=state.pitcherChoice,b=state.batterChoice;
+  const match=p===b,twoOut=state.outs===2;
+  if(match){
+    const hitDist=b;
+    let runs=0,newBases=[false,false,false];
+    if(hitDist===4){
+      runs+=1;
+      for(let i=0;i<3;i++) if(state.bases[i]) runs++;
+    } else {
+      const runnerAdv=twoOut?hitDist+1:hitDist;
+      for(let i=2;i>=0;i--){
+        if(state.bases[i]){
+          const dest=i+runnerAdv;
+          if(dest>=3) runs++;
+          else newBases[dest]=true;
+        }
+      }
+      const batterDest=hitDist-1;
+      if(batterDest>=3) runs++;
+      else newBases[batterDest]=true;
+    }
+    state.bases=newBases;
+    state.scores[state.half]+=runs;
+    let msg=hitNames[b];
+    if(runs>0) msg+=` — ${runs} run${runs>1?'s':''} score${runs===1?'s':''}!`;
+    showResult(msg,'hit');
+    playHitSound(hitDist);
+  } else {
+    state.outs++;
+    playOutSound();
+    showReveal(p);
+    if(state.outs>=3){
+      showResult('Out — side retired','out');
+      setTimeout(()=>{showAd(nextHalf);},2500);
+    } else {
+      showResult('Out','out');
+    }
+  }
+  renderAll();
+  state.pitcherChoice=null; state.batterChoice=null; state.phase='pitch';
+  document.querySelectorAll('.fbutton').forEach(b=>b.classList.remove('selected'));
+  const btn=document.getElementById('submit-btn');
+  btn.disabled=true; btn.textContent='Pitch';
+  document.getElementById('action-label').textContent='Pitcher — choose your pitch (hidden from batter)';
+  if(state.outs<3){
+    const who=state.half===0?'Away pitcher':'Home pitcher';
+    document.getElementById('status-msg').textContent=`${who} — choose your pitch`;
+  }
+}
+
+function nextHalf(){
+  state.outs=0; state.bases=[false,false,false]; state.half++;
+  if(state.half>1){state.half=0; state.inning++;}
+  if(state.inning>INNINGS){endGame(); return;}
+  document.getElementById('result-box').style.display='none';
+  document.getElementById('action-area').style.display='block';
+  render();
+}
+
+function endGame(){
+  document.getElementById('action-area').style.display='none';
+  document.getElementById('gameover-area').style.display='block';
+  const a=state.scores[0],h=state.scores[1];
+  document.getElementById('go-title').textContent=a===h?'Tie game!':a>h?'Away wins!':'Home wins!';
+  document.getElementById('go-body').textContent=`Final score: Away ${a} — Home ${h}`;
+}
+
+function showResult(msg,type){
+  const rb=document.getElementById('result-box');
+  rb.textContent=msg; rb.className='result-box '+type; rb.style.display='block';
+}
+
+function renderBases(){
+  ['runner-first','runner-second','runner-third'].forEach((id,i)=>
+    document.getElementById(id).setAttribute('opacity',state.bases[i]?'1':'0'));
+}
+
+function renderOuts(){
+  for(let i=0;i<3;i++)
+    document.getElementById('oc'+i).className='out-circle'+(state.outs>i?' on':'');
+}
+
+function renderAll(){
+  renderBases(); renderOuts();
+  document.getElementById('score-away').textContent=state.scores[0];
+  document.getElementById('score-home').textContent=state.scores[1];
+  document.getElementById('inning-label').textContent=
+    `Inning ${state.inning} — ${state.half===0?'Top':'Bottom'}`;
+}
+
+function render(){
+  renderAll();
+  const who=state.half===0?'Away pitcher':'Home pitcher';
+  document.getElementById('status-msg').textContent=`${who} — choose your pitch`;
+  document.getElementById('action-label').textContent='Pitcher — choose your pitch (hidden from batter)';
+  document.getElementById('submit-btn').textContent='Pitch';
+  document.getElementById('submit-btn').disabled=true;
+}
+
+initState(); render();
+</script>
+</body>
+</html>

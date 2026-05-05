@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "1,2,3,4 Baseball"
+version = "1.0.0"
+id = "artifacts/baseball-game"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 23587
+
+[services.development]
+run = "pnpm --filter @workspace/baseball-game run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/baseball-game", "run", "build" ]
+publicDir = "artifacts/baseball-game/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "23587"
+BASE_PATH = "/"
