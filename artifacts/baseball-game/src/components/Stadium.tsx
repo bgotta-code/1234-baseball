@@ -17,7 +17,7 @@ const BASE_XY: Record<number, { x: number; y: number }> = {
 // Fielding positions
 const FIELDERS = [
   { x: 149, y: 215, label: 'P'  },
-  { x: 151, y: 258, label: 'C'  },
+  { x: 151, y: 282, label: 'C'  },
   { x: 223, y: 194, label: '1B' }, // moved back (up) ~13px
   { x: 185, y: 156, label: '2B' }, // moved back ~14px
   { x: 115, y: 156, label: 'SS' }, // moved back ~14px
@@ -204,7 +204,7 @@ export function Stadium({ bases, phase, battingTeam, runners }: StadiumProps) {
 
       {/* Home plate */}
       <polygon
-        points={`${HOME.x},${HOME.y - 6} ${HOME.x + 6},${HOME.y - 1} ${HOME.x + 6},${HOME.y + 5} ${HOME.x - 6},${HOME.y + 5} ${HOME.x - 6},${HOME.y - 1}`}
+        points={`${HOME.x - 6},${HOME.y - 5} ${HOME.x + 6},${HOME.y - 5} ${HOME.x + 6},${HOME.y + 1} ${HOME.x},${HOME.y + 6} ${HOME.x - 6},${HOME.y + 1}`}
         fill="white" stroke="#bbb" strokeWidth="0.7"
       />
       <rect x={HOME.x - 22} y={HOME.y - 9}  width="13" height="18" rx="1" fill="none" stroke="rgba(255,255,255,0.45)" strokeWidth="0.9" />
