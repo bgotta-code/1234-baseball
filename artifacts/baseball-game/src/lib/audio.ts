@@ -147,31 +147,38 @@ export function playCrowdCheer() {
   } catch (_) {}
 }
 
-export function playCrowdRoar(intensity: number, delay: number) {
+// dist 1–4 maps to single/double/triple/HR intensity
+export function playCrowdRoar(dist: number, delay: number) {
   if (_muted) return;
   try {
     const ctx = getCtx(), t = ctx.currentTime + delay;
-    const dur = 2.2 + intensity * 0.5;
-    const count = 28 + Math.round(intensity * 6);
+    // Each step noticeably louder, longer, and denser
+    const dur    = 1.8 + dist * 0.65;          // 2.45s → 4.4s
+    const count  = 18 + dist * 9;              // 27 → 54 voices
+    const peak   = 0.030 + dist * 0.022;       // 0.052 → 0.118
+    const sustain = peak * 0.78;
     const v = makeCrowdVoices(ctx, dur, t, 'cheer', count);
-    reverb(ctx, v, 0.46).connect(ctx.destination);
+    reverb(ctx, v, 0.44 + dist * 0.015).connect(ctx.destination);
     v.gain.setValueAtTime(0.001, t);
-    v.gain.linearRampToValueAtTime(0.038 + intensity * 0.016, t + 0.22);
-    v.gain.linearRampToValueAtTime(0.030 + intensity * 0.012, t + dur * 0.5);
+    v.gain.linearRampToValueAtTime(peak, t + 0.18);
+    v.gain.linearRampToValueAtTime(sustain, t + dur * 0.45);
     v.gain.exponentialRampToValueAtTime(0.001, t + dur);
   } catch (_) {}
 }
 
-export function playCrowdGroan() {
+// intensity 1–4 (mirrors dist) — louder groan for bigger away-team hits
+export function playCrowdGroan(intensity = 1) {
   if (_muted) return;
   try {
     const ctx = getCtx(), t = ctx.currentTime;
-    const dur = 1.7;
-    const v = makeCrowdVoices(ctx, dur, t, 'groan', 22);
+    const dur   = 1.4 + intensity * 0.35;       // 1.75s → 2.8s
+    const count = 16 + intensity * 6;            // 22 → 40 voices
+    const peak  = 0.034 + intensity * 0.016;     // 0.050 → 0.098
+    const v = makeCrowdVoices(ctx, dur, t, 'groan', count);
     reverb(ctx, v, 0.38).connect(ctx.destination);
     v.gain.setValueAtTime(0.001, t);
-    v.gain.linearRampToValueAtTime(0.052, t + 0.14);
-    v.gain.linearRampToValueAtTime(0.038, t + 0.65);
+    v.gain.linearRampToValueAtTime(peak, t + 0.13);
+    v.gain.linearRampToValueAtTime(peak * 0.72, t + 0.62);
     v.gain.exponentialRampToValueAtTime(0.001, t + dur);
   } catch (_) {}
 }
@@ -303,8 +310,8 @@ export function playHitSound(dist: number, half: number) {
   if (_muted) return;
   playBatCrack(dist);
   if (half === 0) {
-    // Away team hit — home crowd groans
-    playCrowdGroan();
+    // Away team hit — home crowd groans (louder for bigger hits)
+    playCrowdGroan(dist);
   } else {
     // Home team hit — home crowd cheers
     if (dist === 4) { playHomeRunFanfare(); playCrowdRoar(4, 0.2); }
