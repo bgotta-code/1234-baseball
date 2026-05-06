@@ -87,14 +87,22 @@ export function Game({ awayTeam, homeTeam, onNewGame }: GameProps) {
         setAnimRunners(prev =>
           prev === null ? null :
           prev.map(r => ({ ...r, pos: r.pos + 1 }))
-              .filter(r => r.pos <= 3) // remove runners who have scored
+              .filter(r => r.pos <= 4) // keep pos=4 so they animate TO home before disappearing
         );
       }, step * STEP_MS);
       animTimersRef.current.push(t);
     }
 
-    // After all steps complete, hand back control to game state
-    const endT = setTimeout(() => setAnimRunners(null), (dist + 0.7) * STEP_MS);
+    // Remove scored runners (pos > 3) after the CSS transition completes (~440ms)
+    const cleanT = setTimeout(() => {
+      setAnimRunners(prev =>
+        prev === null ? null : prev.filter(r => r.pos <= 3)
+      );
+    }, dist * STEP_MS + 460);
+    animTimersRef.current.push(cleanT);
+
+    // After all steps + transition, hand back control to game state
+    const endT = setTimeout(() => setAnimRunners(null), (dist + 0.7) * STEP_MS + 460);
     animTimersRef.current.push(endT);
   }, []);
 

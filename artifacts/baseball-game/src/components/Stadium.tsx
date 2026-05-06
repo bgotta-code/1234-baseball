@@ -12,6 +12,7 @@ const BASE_XY: Record<number, { x: number; y: number }> = {
   1: FIRST,
   2: SECOND,
   3: THIRD,
+  4: HOME, // scored — animates back to home plate before disappearing
 };
 
 // Fielding positions
