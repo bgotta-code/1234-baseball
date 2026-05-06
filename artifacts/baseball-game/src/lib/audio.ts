@@ -1,5 +1,10 @@
+// ── Audio context singleton ──────────────────────────────────────────────────
 let audioCtx: AudioContext | null = null;
 let audioUnlocked = false;
+let _muted = false;
+
+export function isMuted() { return _muted; }
+export function toggleMute() { _muted = !_muted; return _muted; }
 
 export function unlockAudio() {
   if (audioUnlocked) return;
@@ -10,7 +15,7 @@ export function unlockAudio() {
     const src = audioCtx.createBufferSource();
     src.buffer = buf; src.connect(audioCtx.destination); src.start(0);
     audioUnlocked = true;
-  } catch (e) {}
+  } catch (_) {}
 }
 
 function getCtx(): AudioContext {
@@ -19,363 +24,288 @@ function getCtx(): AudioContext {
   return audioCtx;
 }
 
-// Create a noise buffer of given duration
-function makeNoiseBuffer(ctx: AudioContext, duration: number): AudioBuffer {
-  const bufLen = Math.floor(ctx.sampleRate * duration);
-  const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+// ── Short noise buffer (utility) ─────────────────────────────────────────────
+function noiseBuf(ctx: AudioContext, dur: number): AudioBuffer {
+  const buf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * dur), ctx.sampleRate);
   const d = buf.getChannelData(0);
-  for (let i = 0; i < bufLen; i++) d[i] = Math.random() * 2 - 1;
+  for (let i = 0; i < d.length; i++) d[i] = Math.random() * 2 - 1;
   return buf;
 }
 
-// Create a bandpass-filtered noise source
-function noiseBand(
-  ctx: AudioContext,
-  duration: number,
-  freq: number,
-  q: number,
-  startTime: number,
-  stopTime: number,
-): AudioNode {
-  const src = ctx.createBufferSource();
-  src.buffer = makeNoiseBuffer(ctx, duration);
-  const bp = ctx.createBiquadFilter();
-  bp.type = 'bandpass';
-  bp.frequency.value = freq;
-  bp.Q.value = q;
-  src.connect(bp);
-  src.start(startTime);
-  src.stop(stopTime);
-  return bp;
-}
-
-// Stadium reverb: multiple delay taps for a spacious feel
-function stadiumReverb(ctx: AudioContext, source: AudioNode, dryWet = 0.45): AudioNode {
+// ── Lightweight stadium reverb (delay taps) ───────────────────────────────────
+function reverb(ctx: AudioContext, src: AudioNode, wet: number): AudioNode {
   const out = ctx.createGain();
-  out.gain.value = 1;
-
-  const dryG = ctx.createGain();
-  dryG.gain.value = 1 - dryWet;
-  source.connect(dryG);
-  dryG.connect(out);
-
-  // Stadium echoes: early reflections + late reverb taps
-  const taps = [
-    { time: 0.035, g: 0.38 },
-    { time: 0.07, g: 0.28 },
-    { time: 0.12, g: 0.2 },
-    { time: 0.2, g: 0.14 },
-    { time: 0.32, g: 0.09 },
-    { time: 0.5, g: 0.06 },
-    { time: 0.75, g: 0.04 },
-  ];
-
-  taps.forEach(({ time, g }) => {
-    const delay = ctx.createDelay(1.0);
-    delay.delayTime.value = time;
-    const tapG = ctx.createGain();
-    tapG.gain.value = g * dryWet;
-    // Light low-pass per tap (air absorption at distance)
-    const lp = ctx.createBiquadFilter();
-    lp.type = 'lowpass';
-    lp.frequency.value = 6000 - time * 6000;
-    source.connect(delay);
-    delay.connect(lp);
-    lp.connect(tapG);
-    tapG.connect(out);
+  const dry = ctx.createGain(); dry.gain.value = 1 - wet * 0.5;
+  src.connect(dry); dry.connect(out);
+  [0.04, 0.09, 0.16, 0.27, 0.45].forEach((t, i) => {
+    const d = ctx.createDelay(0.5); d.delayTime.value = t;
+    const g = ctx.createGain(); g.gain.value = wet * (0.22 - i * 0.035);
+    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass';
+    lp.frequency.value = 4000 - t * 6000;
+    src.connect(d); d.connect(lp); lp.connect(g); g.connect(out);
   });
-
   return out;
 }
 
-// Multi-band crowd noise — sounds like actual crowd of people
-function makeCrowdNoise(
+// ── CROWD VOICE SYNTHESIS ────────────────────────────────────────────────────
+//
+//  Key insight: crowd noise should NOT be filtered noise (that sounds like steam).
+//  Instead use sawtooth oscillators (voice-like harmonics) + bandpass formant
+//  filters (vowel shape) + low-frequency AM modulation (syllabic rhythm).
+//  Many detuned oscillators together = crowd.
+//
+function makeCrowdVoices(
   ctx: AudioContext,
   duration: number,
-  intensity: number,
   startTime: number,
-): AudioNode {
+  type: 'cheer' | 'groan' | 'ambient',
+  count: number,
+): GainNode {
   const master = ctx.createGain();
-  master.gain.value = 0.001;
+  master.gain.value = 0; // caller sets envelope
 
-  // Low rumble — crowd moving, stadium structure (80–220 Hz)
-  const band1 = noiseBand(ctx, duration, 140, 0.7, startTime, startTime + duration);
-  const g1 = ctx.createGain(); g1.gain.value = intensity * 0.35;
-  band1.connect(g1); g1.connect(master);
+  for (let i = 0; i < count; i++) {
+    // Realistic voice pitch range
+    const isMale = Math.random() > 0.4;
+    const f0 = isMale ? 80 + Math.random() * 110 : 155 + Math.random() * 130;
 
-  // Voice fundamental range — crowd chatter (280–600 Hz)
-  const band2 = noiseBand(ctx, duration, 420, 1.1, startTime, startTime + duration);
-  const g2 = ctx.createGain(); g2.gain.value = intensity * 0.45;
-  band2.connect(g2); g2.connect(master);
+    const osc = ctx.createOscillator();
+    osc.type = 'sawtooth'; // sawtooth = rich harmonics like a real voice
+    osc.frequency.value = f0;
 
-  // Voice first formant — "aaah" sound (800–1400 Hz)
-  const band3 = noiseBand(ctx, duration, 1050, 1.8, startTime, startTime + duration);
-  const g3 = ctx.createGain(); g3.gain.value = intensity * 0.3;
-  band3.connect(g3); g3.connect(master);
+    // Pitch contour per crowd type
+    if (type === 'cheer') {
+      // Rising "YEAAAH!" shape
+      osc.frequency.setValueAtTime(f0 * 0.88, startTime);
+      osc.frequency.exponentialRampToValueAtTime(f0 * 1.28, startTime + 0.38);
+      osc.frequency.linearRampToValueAtTime(f0 * 1.08, startTime + duration);
+    } else if (type === 'groan') {
+      // Falling "awww" shape
+      osc.frequency.setValueAtTime(f0 * 1.1, startTime + 0.05);
+      osc.frequency.exponentialRampToValueAtTime(f0 * 0.78, startTime + duration);
+    } else {
+      // Ambient: slow drift
+      osc.frequency.setValueAtTime(f0, startTime);
+      osc.frequency.linearRampToValueAtTime(f0 * (0.96 + Math.random() * 0.08), startTime + duration);
+    }
 
-  // Excitement/sibilance (2000–4500 Hz)
-  const band4 = noiseBand(ctx, duration, 3000, 2.2, startTime, startTime + duration);
-  const g4 = ctx.createGain(); g4.gain.value = intensity * 0.18;
-  band4.connect(g4); g4.connect(master);
+    // Formant filter — gives each voice a vowel character
+    // "aaah" is ~700-1200 Hz, "ohh" is ~500-800 Hz
+    const formantFreq = type === 'cheer'
+      ? 650 + Math.random() * 650
+      : type === 'groan'
+        ? 450 + Math.random() * 350
+        : 380 + Math.random() * 500;
 
-  // Very high fizz — clapping, whistles (6000–10000 Hz)
-  const band5 = noiseBand(ctx, duration, 7500, 2.0, startTime, startTime + duration);
-  const g5 = ctx.createGain(); g5.gain.value = intensity * 0.1;
-  band5.connect(g5); g5.connect(master);
+    const formant = ctx.createBiquadFilter();
+    formant.type = 'bandpass';
+    formant.frequency.value = formantFreq;
+    formant.Q.value = 1.8 + Math.random() * 3.5;
+
+    // Syllabic AM — LFO modulates gain making it sound like people talking/chanting
+    // rather than a sustained drone. Rate 2–7 Hz = natural speech/chant rhythm.
+    const lfoRate = 2.2 + Math.random() * 4.8;
+    const lfo = ctx.createOscillator();
+    lfo.type = 'sine';
+    lfo.frequency.value = lfoRate;
+
+    const lfoDepth = ctx.createGain();
+    lfoDepth.gain.value = 0.22 + Math.random() * 0.22; // AM depth
+
+    const voiceGain = ctx.createGain();
+    voiceGain.gain.value = 0.4 + Math.random() * 0.3;
+
+    // Wire AM: lfo → lfoDepth → voiceGain.gain (adds to base gain)
+    lfo.connect(lfoDepth);
+    lfoDepth.connect(voiceGain.gain);
+
+    osc.connect(formant);
+    formant.connect(voiceGain);
+    voiceGain.connect(master);
+
+    const end = startTime + duration + 0.2;
+    lfo.start(startTime); lfo.stop(end);
+    osc.start(startTime); osc.stop(end);
+  }
 
   return master;
 }
 
-// Add "individual voices" to the crowd — random short oscillator bursts
-function addVoiceBursts(ctx: AudioContext, count: number, startTime: number, duration: number, dest: AudioNode) {
-  for (let i = 0; i < count; i++) {
-    const t = startTime + Math.random() * duration * 0.7;
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.type = 'sine';
-    // Random voice pitch: male 90-180Hz, female 165-260Hz
-    const isMale = Math.random() > 0.45;
-    const baseFreq = isMale ? 90 + Math.random() * 90 : 165 + Math.random() * 95;
-    osc.frequency.setValueAtTime(baseFreq, t);
-    osc.frequency.linearRampToValueAtTime(baseFreq * (0.85 + Math.random() * 0.35), t + 0.3);
-    gain.gain.setValueAtTime(0, t);
-    gain.gain.linearRampToValueAtTime(0.035 + Math.random() * 0.02, t + 0.05);
-    gain.gain.linearRampToValueAtTime(0.02, t + 0.2);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.4 + Math.random() * 0.3);
-    osc.connect(gain);
-    gain.connect(dest);
-    osc.start(t);
-    osc.stop(t + 0.8);
-  }
-}
+// ── CROWD EVENTS ─────────────────────────────────────────────────────────────
 
-export function playSwoosh() {
+export function playCrowdCheer() {
+  if (_muted) return;
   try {
     const ctx = getCtx(), t = ctx.currentTime;
-    const bufLen = Math.floor(ctx.sampleRate * 0.22);
-    const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
-    const d = buf.getChannelData(0);
-    for (let i = 0; i < bufLen; i++) d[i] = Math.random() * 2 - 1;
-    const src = ctx.createBufferSource(); src.buffer = buf;
-    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass';
-    bp.frequency.setValueAtTime(3200, t);
-    bp.frequency.exponentialRampToValueAtTime(350, t + 0.22);
-    bp.Q.value = 1.0;
-    const gain = ctx.createGain();
-    gain.gain.setValueAtTime(0.28, t);
-    gain.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
-    src.connect(bp); bp.connect(gain); gain.connect(ctx.destination);
-    src.start(t); src.stop(t + 0.25);
-  } catch (e) {}
-}
-
-export function playBatCrack(intensity: number) {
-  try {
-    const ctx = getCtx(), t = ctx.currentTime;
-
-    // Initial crack transient (very sharp)
-    const crackBuf = makeNoiseBuffer(ctx, 0.04);
-    const crackSrc = ctx.createBufferSource(); crackSrc.buffer = crackBuf;
-    const crackBp = ctx.createBiquadFilter(); crackBp.type = 'bandpass';
-    crackBp.frequency.value = 3000 + intensity * 600; crackBp.Q.value = 0.6;
-    const crackG = ctx.createGain();
-    crackG.gain.setValueAtTime(1.2, t);
-    crackG.gain.exponentialRampToValueAtTime(0.001, t + 0.04);
-    crackSrc.connect(crackBp); crackBp.connect(crackG); crackG.connect(ctx.destination);
-    crackSrc.start(t); crackSrc.stop(t + 0.05);
-
-    // Body resonance (wood/aluminum) — decaying tone
-    const bodyBuf = makeNoiseBuffer(ctx, 0.18);
-    const bodySrc = ctx.createBufferSource(); bodySrc.buffer = bodyBuf;
-    const bodyBp = ctx.createBiquadFilter(); bodyBp.type = 'bandpass';
-    bodyBp.frequency.value = 1100 + intensity * 300; bodyBp.Q.value = 1.8;
-    const bodyG = ctx.createGain();
-    bodyG.gain.setValueAtTime(0.5, t + 0.005);
-    bodyG.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
-    bodySrc.connect(bodyBp); bodyBp.connect(bodyG); bodyG.connect(ctx.destination);
-    bodySrc.start(t + 0.005); bodySrc.stop(t + 0.2);
-
-    // Ball impact thud — low frequency thump
-    const osc = ctx.createOscillator(), tg = ctx.createGain();
-    osc.type = 'sine';
-    osc.frequency.setValueAtTime(200 + intensity * 25, t);
-    osc.frequency.exponentialRampToValueAtTime(55, t + 0.2);
-    tg.gain.setValueAtTime(0.7, t);
-    tg.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
-    osc.connect(tg); tg.connect(ctx.destination);
-    osc.start(t); osc.stop(t + 0.25);
-  } catch (e) {}
+    const dur = 2.0;
+    const v = makeCrowdVoices(ctx, dur, t, 'cheer', 26);
+    reverb(ctx, v, 0.42).connect(ctx.destination);
+    v.gain.setValueAtTime(0.001, t);
+    v.gain.linearRampToValueAtTime(0.058, t + 0.18);
+    v.gain.linearRampToValueAtTime(0.045, t + 0.9);
+    v.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  } catch (_) {}
 }
 
 export function playCrowdRoar(intensity: number, delay: number) {
+  if (_muted) return;
   try {
-    const ctx = getCtx();
-    const duration = 2.0 + intensity * 1.5;
-    const startTime = ctx.currentTime + delay;
-
-    const crowd = makeCrowdNoise(ctx, duration + 0.5, 1.0, startTime);
-    const reverb = stadiumReverb(ctx, crowd, 0.5);
-    reverb.connect(ctx.destination);
-
-    // Add individual voices cheering
-    addVoiceBursts(ctx, Math.floor(8 + intensity * 6), startTime, duration, ctx.destination);
-
-    // Envelope the master crowd
-    const envGain = ctx.createGain();
-    crowd.connect(envGain);
-
-    // Shape the volume envelope
-    const masterGain = crowd as GainNode;
-    masterGain.gain.setValueAtTime(0.001, startTime);
-    masterGain.gain.linearRampToValueAtTime(0.42 + intensity * 0.12, startTime + 0.4);
-    masterGain.gain.linearRampToValueAtTime(0.30 + intensity * 0.08, startTime + duration * 0.55);
-    masterGain.gain.exponentialRampToValueAtTime(0.001, startTime + duration);
-  } catch (e) {}
+    const ctx = getCtx(), t = ctx.currentTime + delay;
+    const dur = 2.2 + intensity * 0.5;
+    const count = 28 + Math.round(intensity * 6);
+    const v = makeCrowdVoices(ctx, dur, t, 'cheer', count);
+    reverb(ctx, v, 0.46).connect(ctx.destination);
+    v.gain.setValueAtTime(0.001, t);
+    v.gain.linearRampToValueAtTime(0.038 + intensity * 0.016, t + 0.22);
+    v.gain.linearRampToValueAtTime(0.030 + intensity * 0.012, t + dur * 0.5);
+    v.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  } catch (_) {}
 }
 
 export function playCrowdGroan() {
+  if (_muted) return;
   try {
-    const ctx = getCtx();
-    const duration = 1.4;
-    const t = ctx.currentTime;
-
-    // Multi-band noise shaped like a groan (descending)
-    const crowd = makeCrowdNoise(ctx, duration, 0.7, t);
-    const reverb = stadiumReverb(ctx, crowd, 0.4);
-    reverb.connect(ctx.destination);
-
-    // Groan envelope: quick swell then fade
-    const master = crowd as GainNode;
-    master.gain.setValueAtTime(0.001, t);
-    master.gain.linearRampToValueAtTime(0.28, t + 0.18);
-    master.gain.linearRampToValueAtTime(0.2, t + 0.6);
-    master.gain.exponentialRampToValueAtTime(0.001, t + duration);
-
-    // Descending "ohhh" voices (crowd expressing disappointment)
-    for (let v = 0; v < 10; v++) {
-      const osc = ctx.createOscillator(), gain = ctx.createGain();
-      const det = (Math.random() - 0.5) * 50;
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(340 + det, t + 0.04);
-      osc.frequency.linearRampToValueAtTime(195 + det * 0.6, t + 1.0);
-      gain.gain.setValueAtTime(0, t);
-      gain.gain.linearRampToValueAtTime(0.05 + Math.random() * 0.02, t + 0.1);
-      gain.gain.linearRampToValueAtTime(0.04, t + 0.6);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 1.2);
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.start(t); osc.stop(t + 1.3);
-    }
-
-    addVoiceBursts(ctx, 4, t + 0.1, 0.8, ctx.destination);
-  } catch (e) {}
+    const ctx = getCtx(), t = ctx.currentTime;
+    const dur = 1.7;
+    const v = makeCrowdVoices(ctx, dur, t, 'groan', 22);
+    reverb(ctx, v, 0.38).connect(ctx.destination);
+    v.gain.setValueAtTime(0.001, t);
+    v.gain.linearRampToValueAtTime(0.052, t + 0.14);
+    v.gain.linearRampToValueAtTime(0.038, t + 0.65);
+    v.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  } catch (_) {}
 }
 
-export function playCrowdCheer() {
-  try {
-    const ctx = getCtx();
-    const duration = 1.5;
-    const t = ctx.currentTime;
-
-    // Multi-band noise
-    const crowd = makeCrowdNoise(ctx, duration, 0.85, t);
-    const reverb = stadiumReverb(ctx, crowd, 0.48);
-    reverb.connect(ctx.destination);
-
-    const master = crowd as GainNode;
-    master.gain.setValueAtTime(0.001, t);
-    master.gain.linearRampToValueAtTime(0.32, t + 0.12);
-    master.gain.linearRampToValueAtTime(0.25, t + 0.7);
-    master.gain.exponentialRampToValueAtTime(0.001, t + duration);
-
-    // Rising "yeaah" voices (crowd cheering)
-    for (let v = 0; v < 8; v++) {
-      const osc = ctx.createOscillator(), gain = ctx.createGain();
-      const det = (Math.random() - 0.5) * 65;
-      osc.type = 'sine';
-      osc.frequency.setValueAtTime(230 + det, t);
-      osc.frequency.linearRampToValueAtTime(380 + det, t + 0.3);
-      osc.frequency.linearRampToValueAtTime(320 + det * 0.5, t + 0.7);
-      gain.gain.setValueAtTime(0, t);
-      gain.gain.linearRampToValueAtTime(0.06 + Math.random() * 0.025, t + 0.08);
-      gain.gain.linearRampToValueAtTime(0.04, t + 0.5);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 1.0);
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.start(t); osc.stop(t + 1.1);
-    }
-
-    addVoiceBursts(ctx, 5, t, 0.6, ctx.destination);
-  } catch (e) {}
-}
-
-export function playGloveThud() {
+// ── PITCH SOUND ──────────────────────────────────────────────────────────────
+// Short descending tone + light air texture — ball leaving the pitcher's hand.
+export function playSwoosh() {
+  if (_muted) return;
   try {
     const ctx = getCtx(), t = ctx.currentTime;
 
-    // Low thump
-    const osc = ctx.createOscillator(), og = ctx.createGain();
+    // Descending "whomp" tone
+    const osc = ctx.createOscillator();
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(120, t);
-    osc.frequency.exponentialRampToValueAtTime(45, t + 0.14);
-    og.gain.setValueAtTime(0.6, t);
-    og.gain.exponentialRampToValueAtTime(0.001, t + 0.14);
-    osc.connect(og); og.connect(ctx.destination);
-    osc.start(t); osc.stop(t + 0.16);
+    osc.frequency.setValueAtTime(320, t);
+    osc.frequency.exponentialRampToValueAtTime(130, t + 0.2);
+    const g = ctx.createGain();
+    g.gain.setValueAtTime(0.001, t);
+    g.gain.linearRampToValueAtTime(0.3, t + 0.018);
+    g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+    osc.connect(g); g.connect(ctx.destination);
+    osc.start(t); osc.stop(t + 0.26);
 
-    // Impact noise burst
-    const noiseBuf = makeNoiseBuffer(ctx, 0.1);
-    const nSrc = ctx.createBufferSource(); nSrc.buffer = noiseBuf;
-    const lp = ctx.createBiquadFilter(); lp.type = 'lowpass'; lp.frequency.value = 380;
+    // Very light air texture at ~2kHz (not hissy, just a touch)
+    const nb = noiseBuf(ctx, 0.1);
+    const ns = ctx.createBufferSource(); ns.buffer = nb;
+    const nbp = ctx.createBiquadFilter(); nbp.type = 'bandpass';
+    nbp.frequency.value = 2000; nbp.Q.value = 3;
     const ng = ctx.createGain();
-    ng.gain.setValueAtTime(0.55, t);
+    ng.gain.setValueAtTime(0.05, t);
     ng.gain.exponentialRampToValueAtTime(0.001, t + 0.1);
-    nSrc.connect(lp); lp.connect(ng); ng.connect(ctx.destination);
-    nSrc.start(t); nSrc.stop(t + 0.12);
-  } catch (e) {}
+    ns.connect(nbp); nbp.connect(ng); ng.connect(ctx.destination);
+    ns.start(t); ns.stop(t + 0.12);
+  } catch (_) {}
 }
 
+// ── BAT CRACK ────────────────────────────────────────────────────────────────
+// Sharp impulse transient + wooden resonance tones + low ball thump.
+export function playBatCrack(intensity: number) {
+  if (_muted) return;
+  try {
+    const ctx = getCtx(), t = ctx.currentTime;
+
+    // 1. Sharp crack impulse — very short noise burst, HIGH frequencies
+    const imp = noiseBuf(ctx, 0.004);
+    const impD = imp.getChannelData(0);
+    for (let i = 0; i < impD.length; i++) impD[i] *= (1 - i / impD.length) * 2;
+    const impSrc = ctx.createBufferSource(); impSrc.buffer = imp;
+    const impHp = ctx.createBiquadFilter(); impHp.type = 'highpass';
+    impHp.frequency.value = 2500;
+    const impG = ctx.createGain(); impG.gain.value = 2.2;
+    impSrc.connect(impHp); impHp.connect(impG); impG.connect(ctx.destination);
+    impSrc.start(t); impSrc.stop(t + 0.008);
+
+    // 2. Wooden bat resonant tones (tuned sine decays — like a struck wooden bar)
+    const woodFreqs = [620, 980, 1540];
+    woodFreqs.forEach((f, i) => {
+      const wo = ctx.createOscillator(), wg = ctx.createGain();
+      wo.type = 'sine';
+      wo.frequency.value = f * (1 + intensity * 0.08);
+      const decay = 0.09 - i * 0.025;
+      wg.gain.setValueAtTime(0.48 / (i + 1), t + 0.001);
+      wg.gain.exponentialRampToValueAtTime(0.001, t + 0.003 + decay);
+      wo.connect(wg); wg.connect(ctx.destination);
+      wo.start(t); wo.stop(t + 0.15);
+    });
+
+    // 3. Ball impact low thump — pitch drops like a struck membrane
+    const thump = ctx.createOscillator(), tg = ctx.createGain();
+    thump.type = 'sine';
+    thump.frequency.setValueAtTime(200 + intensity * 28, t);
+    thump.frequency.exponentialRampToValueAtTime(48, t + 0.14);
+    tg.gain.setValueAtTime(0.85, t);
+    tg.gain.exponentialRampToValueAtTime(0.001, t + 0.18);
+    thump.connect(tg); tg.connect(ctx.destination);
+    thump.start(t); thump.stop(t + 0.2);
+  } catch (_) {}
+}
+
+// ── GLOVE THUD (ball caught for an out) ──────────────────────────────────────
+export function playGloveThud() {
+  if (_muted) return;
+  try {
+    const ctx = getCtx(), t = ctx.currentTime;
+
+    const osc = ctx.createOscillator(), og = ctx.createGain();
+    osc.type = 'sine';
+    osc.frequency.setValueAtTime(115, t);
+    osc.frequency.exponentialRampToValueAtTime(45, t + 0.13);
+    og.gain.setValueAtTime(0.7, t);
+    og.gain.exponentialRampToValueAtTime(0.001, t + 0.16);
+    osc.connect(og); og.connect(ctx.destination);
+    osc.start(t); osc.stop(t + 0.18);
+
+    // Leather slap — narrow mid-freq noise
+    const nb = noiseBuf(ctx, 0.06);
+    const ns = ctx.createBufferSource(); ns.buffer = nb;
+    const bp = ctx.createBiquadFilter(); bp.type = 'bandpass';
+    bp.frequency.value = 600; bp.Q.value = 1.5;
+    const ng = ctx.createGain();
+    ng.gain.setValueAtTime(0.45, t);
+    ng.gain.exponentialRampToValueAtTime(0.001, t + 0.09);
+    ns.connect(bp); bp.connect(ng); ng.connect(ctx.destination);
+    ns.start(t); ns.stop(t + 0.08);
+  } catch (_) {}
+}
+
+// ── HOME RUN FANFARE ─────────────────────────────────────────────────────────
 export function playHomeRunFanfare() {
+  if (_muted) return;
   try {
     const ctx = getCtx();
     [523, 659, 784, 1047, 1319].forEach((freq, i) => {
       const t = ctx.currentTime + i * 0.13;
-      const osc = ctx.createOscillator(), gain = ctx.createGain();
+      const osc = ctx.createOscillator(), g = ctx.createGain();
       osc.type = 'square'; osc.frequency.value = freq;
-      gain.gain.setValueAtTime(0.16, t);
-      gain.gain.exponentialRampToValueAtTime(0.001, t + 0.24);
-      osc.connect(gain); gain.connect(ctx.destination);
-      osc.start(t); osc.stop(t + 0.28);
+      g.gain.setValueAtTime(0.12, t);
+      g.gain.exponentialRampToValueAtTime(0.001, t + 0.22);
+      osc.connect(g); g.connect(ctx.destination);
+      osc.start(t); osc.stop(t + 0.26);
     });
-  } catch (e) {}
+  } catch (_) {}
 }
 
-// Ambient stadium murmur (background noise)
-let ambientNode: GainNode | null = null;
-export function startAmbientMurmur() {
-  try {
-    const ctx = getCtx();
-    if (ambientNode) return;
-    const duration = 30;
-    const t = ctx.currentTime;
-    const crowd = makeCrowdNoise(ctx, duration, 0.25, t);
-    const reverb = stadiumReverb(ctx, crowd, 0.5);
-    const out = ctx.createGain();
-    out.gain.value = 0.18;
-    reverb.connect(out);
-    out.connect(ctx.destination);
-    const master = crowd as GainNode;
-    master.gain.setValueAtTime(0.001, t);
-    master.gain.linearRampToValueAtTime(1, t + 2);
-    ambientNode = out;
-  } catch (e) {}
-}
-
+// ── HIGH-LEVEL HELPERS ───────────────────────────────────────────────────────
 export function playHitSound(dist: number) {
+  if (_muted) return;
   playBatCrack(dist);
-  if (dist === 4) { playHomeRunFanfare(); playCrowdRoar(4, 0.18); }
-  else playCrowdRoar(dist, 0.12);
+  if (dist === 4) { playHomeRunFanfare(); playCrowdRoar(4, 0.2); }
+  else playCrowdRoar(dist, 0.15);
 }
 
 export function playOutSound(half: number) {
+  if (_muted) return;
   playGloveThud();
   if (half === 0) playCrowdCheer();
   else playCrowdGroan();

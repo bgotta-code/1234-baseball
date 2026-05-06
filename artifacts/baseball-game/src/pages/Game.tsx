@@ -6,6 +6,8 @@ import {
   playSwoosh,
   playHitSound,
   playOutSound,
+  isMuted,
+  toggleMute,
 } from '@/lib/audio';
 import {
   initState,
@@ -31,6 +33,7 @@ export function Game({ awayTeam, homeTeam, onNewGame }: GameProps) {
   const [result, setResult] = useState<ResultInfo>(null);
   const [reveal, setReveal] = useState<RevealInfo>(null);
   const [selectedNum, setSelectedNum] = useState<number | null>(null);
+  const [muted, setMuted] = useState(isMuted);
   const [adCountdown, setAdCountdown] = useState(15);
   const adTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -256,9 +259,20 @@ export function Game({ awayTeam, homeTeam, onNewGame }: GameProps) {
       <div className="w-full max-w-sm flex flex-col gap-2.5">
 
         {/* Header */}
-        <div className="flex items-center justify-center gap-2 pt-1">
-          <span className="text-base">⚾</span>
-          <h1 className="text-[16px] font-black text-white tracking-wide">1,2,3,4 Baseball</h1>
+        <div className="flex items-center justify-between pt-1">
+          <div className="w-9" />
+          <div className="flex items-center gap-2">
+            <span className="text-base">⚾</span>
+            <h1 className="text-[16px] font-black text-white tracking-wide">1,2,3,4 Baseball</h1>
+          </div>
+          <button
+            onClick={() => { setMuted(toggleMute()); }}
+            className="w-9 h-9 rounded-xl flex items-center justify-center border border-white/15 transition-all active:scale-90"
+            style={{ background: 'rgba(255,255,255,0.07)', fontSize: 18 }}
+            title={muted ? 'Unmute' : 'Mute'}
+          >
+            {muted ? '🔇' : '🔊'}
+          </button>
         </div>
 
         {/* Score strip */}
