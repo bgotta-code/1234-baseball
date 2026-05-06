@@ -18,13 +18,13 @@ const BASE_XY: Record<number, { x: number; y: number }> = {
 const FIELDERS = [
   { x: 149, y: 215, label: 'P'  },
   { x: 151, y: 258, label: 'C'  },
-  { x: 220, y: 207, label: '1B' },
-  { x: 183, y: 170, label: '2B' },
-  { x: 117, y: 170, label: 'SS' },
-  { x: 80,  y: 207, label: '3B' },
-  { x: 62,  y: 103, label: 'LF' },
-  { x: 150, y: 70,  label: 'CF' },
-  { x: 238, y: 103, label: 'RF' },
+  { x: 223, y: 194, label: '1B' }, // moved back (up) ~13px
+  { x: 185, y: 156, label: '2B' }, // moved back ~14px
+  { x: 115, y: 156, label: 'SS' }, // moved back ~14px
+  { x: 77,  y: 194, label: '3B' }, // moved back ~13px
+  { x: 76,  y: 118, label: 'LF' }, // moved in ~15px
+  { x: 150, y: 90,  label: 'CF' }, // moved in ~20px
+  { x: 224, y: 118, label: 'RF' }, // moved in ~15px
 ];
 
 // ── Static fielder / batter dot ───────────────────────────────────────────────
