@@ -79,8 +79,22 @@ function RunnerDot({ x, y }: { x: number; y: number }) {
   );
 }
 
+// ── Star burst path helper ────────────────────────────────────────────────────
+function starPath(cx: number, cy: number, outer: number, inner: number, pts: number) {
+  let d = '';
+  for (let i = 0; i < pts * 2; i++) {
+    const angle = (i * Math.PI / pts) - Math.PI / 2;
+    const r = i % 2 === 0 ? outer : inner;
+    const x = (cx + r * Math.cos(angle)).toFixed(1);
+    const y = (cy + r * Math.sin(angle)).toFixed(1);
+    d += (i === 0 ? 'M' : 'L') + `${x},${y} `;
+  }
+  return d + 'Z';
+}
+
 // ── Component interface ───────────────────────────────────────────────────────
 interface AnimRunner { id: string; pos: number }
+interface ScoreFlash { id: string; delay: number }
 
 interface StadiumProps {
   bases: [boolean, boolean, boolean];
@@ -90,9 +104,11 @@ interface StadiumProps {
   battingTeam: 0 | 1;
   /** When set, overrides static base display with step-animated runners */
   runners?: AnimRunner[];
+  /** Score flash events — each triggers a ring ripple + starburst at home plate */
+  homeFlashes?: ScoreFlash[];
 }
 
-export function Stadium({ bases, phase, battingTeam, runners }: StadiumProps) {
+export function Stadium({ bases, phase, battingTeam, runners, homeFlashes }: StadiumProps) {
   const isAnimating = runners !== undefined;
 
   // Determine which bases appear occupied — follow animation positions if active
@@ -236,6 +252,30 @@ export function Stadium({ bases, phase, battingTeam, runners }: StadiumProps) {
           size={7}
         />
       )}
+
+      {/* Score flash — ring ripple + starburst at home plate for each run scored */}
+      {homeFlashes && homeFlashes.map(flash => (
+        <g key={flash.id}>
+          <circle
+            cx={HOME.x} cy={HOME.y - 4} r="10"
+            fill="none" stroke="#FFD700" strokeWidth="2.5"
+            className="score-ring score-ring-a"
+            style={{ animationDelay: `${flash.delay}ms` }}
+          />
+          <circle
+            cx={HOME.x} cy={HOME.y - 4} r="7"
+            fill="none" stroke="#FFA040" strokeWidth="1.8"
+            className="score-ring score-ring-b"
+            style={{ animationDelay: `${flash.delay + 90}ms` }}
+          />
+          <path
+            d={starPath(HOME.x, HOME.y - 4, 13, 5, 8)}
+            fill="#FFD700"
+            className="score-burst"
+            style={{ animationDelay: `${flash.delay}ms` }}
+          />
+        </g>
+      ))}
     </svg>
   );
 }

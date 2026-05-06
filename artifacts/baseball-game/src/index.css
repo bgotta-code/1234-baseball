@@ -81,3 +81,30 @@
 .runner-part {
   transition: cx 0.44s ease-in-out, cy 0.44s ease-in-out;
 }
+
+/* Home plate score flash — ring ripple + starburst */
+.score-ring {
+  transform-box: fill-box;
+  transform-origin: center;
+}
+.score-ring-a {
+  animation: score-ring-expand 0.65s ease-out forwards;
+}
+.score-ring-b {
+  opacity: 0;
+  animation: score-ring-expand 0.72s ease-out forwards;
+}
+@keyframes score-ring-expand {
+  0%   { transform: scale(0.2); opacity: 0.95; }
+  100% { transform: scale(3.4); opacity: 0; }
+}
+.score-burst {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: score-burst-pop 0.52s ease-out forwards;
+}
+@keyframes score-burst-pop {
+  0%   { transform: scale(0.1); opacity: 1; }
+  40%  { transform: scale(1.05); opacity: 1; }
+  100% { transform: scale(1.8); opacity: 0; }
+}

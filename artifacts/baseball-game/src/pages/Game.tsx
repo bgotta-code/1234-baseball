@@ -36,6 +36,7 @@ export function Game({ awayTeam, homeTeam, onNewGame }: GameProps) {
   const [muted, setMuted] = useState(isMuted);
   const [adCountdown, setAdCountdown] = useState(15);
   const [animRunners, setAnimRunners] = useState<Array<{ id: string; pos: number }> | null>(null);
+  const [homeFlashes, setHomeFlashes] = useState<Array<{ id: string; delay: number }>>([]);
 
   const adTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -78,6 +79,13 @@ export function Game({ awayTeam, homeTeam, onNewGame }: GameProps) {
     if (prevBases[0]) initial.push({ id: nextId(), pos: 1 });
     initial.push({ id: nextId(), pos: 0 }); // batter starts at home plate
 
+    // How many runners will cross home plate on this hit?
+    const scoringCount =
+      (prevBases[2] && 3 + dist >= 4 ? 1 : 0) +
+      (prevBases[1] && 2 + dist >= 4 ? 1 : 0) +
+      (prevBases[0] && 1 + dist >= 4 ? 1 : 0) +
+      (dist >= 4 ? 1 : 0); // batter scores only on HR
+
     setAnimRunners(initial);
 
     const STEP_MS = 500; // ms between each base advancement
@@ -93,11 +101,21 @@ export function Game({ awayTeam, homeTeam, onNewGame }: GameProps) {
       animTimersRef.current.push(t);
     }
 
-    // Remove scored runners (pos > 3) after the CSS transition completes (~440ms)
+    // Remove scored runners + fire score flash(es) after CSS transition completes
     const cleanT = setTimeout(() => {
       setAnimRunners(prev =>
         prev === null ? null : prev.filter(r => r.pos <= 3)
       );
+      if (scoringCount > 0) {
+        const flashes = Array.from({ length: scoringCount }, (_, i) => ({
+          id: `${Date.now()}-${i}`,
+          delay: i * 80,
+        }));
+        setHomeFlashes(f => [...f, ...flashes]);
+        setTimeout(() => {
+          setHomeFlashes(f => f.filter(x => !flashes.some(n => n.id === x.id)));
+        }, 1100);
+      }
     }, dist * STEP_MS + 460);
     animTimersRef.current.push(cleanT);
 
@@ -373,6 +391,7 @@ export function Game({ awayTeam, homeTeam, onNewGame }: GameProps) {
             homeTeam={homeTeam}
             battingTeam={battingTeamIdx}
             runners={animRunners ?? undefined}
+            homeFlashes={homeFlashes}
           />
         </div>
 
