@@ -76,3 +76,8 @@
     touch-action: manipulation;
   }
 }
+
+/* Runner dot smooth position transitions — cx/cy are CSS-animatable on SVG elements */
+.runner-part {
+  transition: cx 0.44s ease-in-out, cy 0.44s ease-in-out;
+}

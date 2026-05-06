@@ -35,9 +35,13 @@ export function Game({ awayTeam, homeTeam, onNewGame }: GameProps) {
   const [selectedNum, setSelectedNum] = useState<number | null>(null);
   const [muted, setMuted] = useState(isMuted);
   const [adCountdown, setAdCountdown] = useState(15);
+  const [animRunners, setAnimRunners] = useState<Array<{ id: string; pos: number }> | null>(null);
+
   const adTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const postAdCallback = useRef<(() => void) | null>(null);
+  const animTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const runnerIdRef = useRef(0);
 
   useEffect(() => {
     const handler = () => unlockAudio();
@@ -55,7 +59,43 @@ export function Game({ awayTeam, homeTeam, onNewGame }: GameProps) {
     return () => {
       if (adTimerRef.current) clearInterval(adTimerRef.current);
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
+      animTimersRef.current.forEach(clearTimeout);
     };
+  }, []);
+
+  // Animate runners advancing base by base after a hit.
+  // prevBases = bases state before the hit; dist = 1–4
+  const startRunnerAnimation = useCallback((prevBases: [boolean, boolean, boolean], dist: number) => {
+    animTimersRef.current.forEach(clearTimeout);
+    animTimersRef.current = [];
+
+    const nextId = () => String(++runnerIdRef.current);
+
+    // Build the starting lineup: existing runners in order 3B→2B→1B, then batter at home
+    const initial: Array<{ id: string; pos: number }> = [];
+    if (prevBases[2]) initial.push({ id: nextId(), pos: 3 });
+    if (prevBases[1]) initial.push({ id: nextId(), pos: 2 });
+    if (prevBases[0]) initial.push({ id: nextId(), pos: 1 });
+    initial.push({ id: nextId(), pos: 0 }); // batter starts at home plate
+
+    setAnimRunners(initial);
+
+    const STEP_MS = 500; // ms between each base advancement
+
+    for (let step = 1; step <= dist; step++) {
+      const t = setTimeout(() => {
+        setAnimRunners(prev =>
+          prev === null ? null :
+          prev.map(r => ({ ...r, pos: r.pos + 1 }))
+              .filter(r => r.pos <= 3) // remove runners who have scored
+        );
+      }, step * STEP_MS);
+      animTimersRef.current.push(t);
+    }
+
+    // After all steps complete, hand back control to game state
+    const endT = setTimeout(() => setAnimRunners(null), (dist + 0.7) * STEP_MS);
+    animTimersRef.current.push(endT);
   }, []);
 
   const showReveal = useCallback((pitcherNum: number) => {
@@ -103,6 +143,9 @@ export function Game({ awayTeam, homeTeam, onNewGame }: GameProps) {
       const atBatResult = resolveAtBat(state);
 
       if (atBatResult.type === 'hit') {
+        // Capture bases BEFORE state update so animation starts from correct positions
+        const prevBases = [...state.bases] as [boolean, boolean, boolean];
+        startRunnerAnimation(prevBases, atBatResult.hitDist!);
         playHitSound(atBatResult.hitDist!, state.half);
         setResult({ message: atBatResult.message, type: 'hit' });
         setState(atBatResult.newState);
@@ -321,6 +364,7 @@ export function Game({ awayTeam, homeTeam, onNewGame }: GameProps) {
             awayTeam={awayTeam}
             homeTeam={homeTeam}
             battingTeam={battingTeamIdx}
+            runners={animRunners ?? undefined}
           />
         </div>
 
