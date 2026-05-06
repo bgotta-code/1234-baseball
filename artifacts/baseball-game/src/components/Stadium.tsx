@@ -176,12 +176,6 @@ export function Stadium({ bases, phase, battingTeam, runners }: StadiumProps) {
       <circle cx="107" cy="270" r="8" fill="#b07a3a" opacity="0.8" />
       <circle cx="193" cy="270" r="8" fill="#b07a3a" opacity="0.8" />
 
-      {/* Dugout boxes */}
-      <rect x="-13" y="-7" width="30" height="13" rx="1.5" fill="white" opacity="0.85"
-        transform="translate(44,228) rotate(-44)" />
-      <rect x="-13" y="-7" width="30" height="13" rx="1.5" fill="white" opacity="0.85"
-        transform="translate(256,228) rotate(44)" />
-
       {/* Bases — highlight color follows runner positions (animated or static) */}
       <rect x={SECOND.x - 6} y={SECOND.y - 6} width="12" height="12" rx="1.5"
         fill={base2Lit ? '#f5a623' : 'white'}
