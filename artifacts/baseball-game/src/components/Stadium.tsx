@@ -1,37 +1,47 @@
 interface StadiumProps {
   bases: [boolean, boolean, boolean];
   phase: 'pitch' | 'swing';
+  awayTeam: string;
+  homeTeam: string;
+  battingTeam: 0 | 1; // 0=away, 1=home
 }
 
-// Key coordinate anchors (viewBox 0 0 300 270)
-const HOME = { x: 150, y: 250 };
-const FIRST = { x: 202, y: 198 };
-const SECOND = { x: 150, y: 146 };
-const THIRD = { x: 98, y: 198 };
-const MOUND = { x: 150, y: 198 };
+// Field coordinates — ViewBox 0 0 300 295
+const HOME   = { x: 150, y: 273 };
+const FIRST  = { x: 212, y: 211 };
+const SECOND = { x: 150, y: 149 };
+const THIRD  = { x: 88,  y: 211 };
+const MOUND  = { x: 150, y: 212 };
 
-// Fielder positions
+// Fielding positions (home team in field)
 const FIELDERS = [
-  { x: 183, y: 162, label: '2B' },
-  { x: 117, y: 162, label: 'SS' },
-  { x: 215, y: 194, label: '1B' },
-  { x: 85, y: 194, label: '3B' },
-  { x: 66, y: 102, label: 'LF' },
-  { x: 150, y: 68, label: 'CF' },
-  { x: 234, y: 102, label: 'RF' },
+  { x: 149, y: 215, label: 'P'  },  // pitcher (on mound)
+  { x: 151, y: 258, label: 'C'  },  // catcher
+  { x: 220, y: 207, label: '1B' },
+  { x: 183, y: 170, label: '2B' },
+  { x: 117, y: 170, label: 'SS' },
+  { x: 80,  y: 207, label: '3B' },
+  { x: 62,  y: 103, label: 'LF' },
+  { x: 150, y: 70,  label: 'CF' },
+  { x: 238, y: 103, label: 'RF' },
 ];
 
-function PlayerDot({
-  x, y, color = '#1e3a6e', size = 6, label,
-}: { x: number; y: number; color?: string; size?: number; label?: string }) {
+interface PlayerDotProps {
+  x: number; y: number;
+  color?: string;
+  size?: number;
+  label?: string;
+}
+
+function PlayerDot({ x, y, color = '#1e3a8a', size = 5.5, label }: PlayerDotProps) {
   return (
     <g>
-      <ellipse cx={x} cy={y + size * 0.9} rx={size * 1.1} ry={size * 0.45} fill="rgba(0,0,0,0.22)" />
-      <circle cx={x} cy={y} r={size} fill={color} stroke="white" strokeWidth="1.4" />
-      <circle cx={x} cy={y - size * 0.52} r={size * 0.44} fill="#f5d5a8" stroke="white" strokeWidth="0.8" />
+      <ellipse cx={x} cy={y + size * 0.9} rx={size * 1.1} ry={size * 0.4} fill="rgba(0,0,0,0.25)" />
+      <circle cx={x} cy={y} r={size} fill={color} stroke="white" strokeWidth="1.3" />
+      <circle cx={x} cy={y - size * 0.5} r={size * 0.42} fill="#f5d5a8" stroke="white" strokeWidth="0.7" />
       {label && (
-        <text x={x} y={y + size + 9} textAnchor="middle" fontSize="7" fill="rgba(255,255,255,0.75)" fontWeight="600"
-          fontFamily="-apple-system,sans-serif">
+        <text x={x} y={y + size + 9} textAnchor="middle" fontSize="6.5"
+          fill="rgba(255,255,255,0.8)" fontWeight="700" fontFamily="system-ui,sans-serif">
           {label}
         </text>
       )}
@@ -39,157 +49,180 @@ function PlayerDot({
   );
 }
 
-export function Stadium({ bases, phase }: StadiumProps) {
+export function Stadium({ bases, phase, battingTeam }: StadiumProps) {
   const [onFirst, onSecond, onThird] = bases;
 
+  // Infield dirt arc: center (150, 190), radius 66
+  // Arc from slightly-past-1B through above-2B to slightly-past-3B
+  const DIRT_ARC_R = 66;
+  const DIRT_ARC_CX = 150;
+  const DIRT_ARC_CY = 190;
+  // Endpoints of dirt arc (where the baselines meet the arc)
+  const DIRT_R = { x: 214, y: 209 };
+  const DIRT_L = { x: 86,  y: 209 };
+
   return (
-    <svg
-      viewBox="0 0 300 270"
-      width="100%"
-      style={{ display: 'block', maxHeight: 240 }}
-      aria-label="Baseball field"
-    >
+    <svg viewBox="0 0 300 295" width="100%" style={{ display: 'block', maxHeight: 245 }}>
       <defs>
-        <radialGradient id="outfieldGrad" cx="50%" cy="60%" r="70%">
-          <stop offset="0%" stopColor="#2a7c2a" />
-          <stop offset="100%" stopColor="#1b5c1b" />
+        <radialGradient id="fieldGrad" cx="50%" cy="65%" r="65%">
+          <stop offset="0%" stopColor="#45a045" />
+          <stop offset="100%" stopColor="#2c7a2c" />
         </radialGradient>
-        <radialGradient id="infieldDirtGrad" cx="50%" cy="40%" r="60%">
-          <stop offset="0%" stopColor="#c4905f" />
-          <stop offset="100%" stopColor="#a87040" />
+        <radialGradient id="dirtGrad" cx="50%" cy="50%" r="70%">
+          <stop offset="0%" stopColor="#ca9a5c" />
+          <stop offset="100%" stopColor="#b07a3a" />
         </radialGradient>
-        <radialGradient id="infieldGrassGrad" cx="50%" cy="50%" r="70%">
-          <stop offset="0%" stopColor="#339933" />
-          <stop offset="100%" stopColor="#256625" />
+        <radialGradient id="innerGrassGrad" cx="50%" cy="50%" r="70%">
+          <stop offset="0%" stopColor="#48a848" />
+          <stop offset="100%" stopColor="#2e8c2e" />
         </radialGradient>
-        <clipPath id="fieldClip">
-          <path d="M 2,270 L 2,165 Q 150,2 298,165 L 298,270 Z" />
+        <clipPath id="fieldShape">
+          <path d={`M ${HOME.x},${HOME.y} L 8,140 Q 150,3 292,140 L ${HOME.x},${HOME.y} Z`} />
         </clipPath>
       </defs>
 
-      {/* === OUTFIELD GRASS === */}
-      <path d="M 2,270 L 2,165 Q 150,2 298,165 L 298,270 Z" fill="url(#outfieldGrad)" />
+      {/* ── OUTFIELD GRASS ── */}
+      <path
+        d={`M ${HOME.x},${HOME.y} L 8,140 Q 150,3 292,140 L ${HOME.x},${HOME.y} Z`}
+        fill="url(#fieldGrad)"
+      />
 
-      {/* Outfield grass stripes (mowing pattern) */}
-      {[0, 1, 2, 3, 4, 5, 6].map(i => (
-        <path
-          key={i}
-          d={`M ${2 + i * 43},270 L ${2 + i * 43},165`}
-          stroke="rgba(0,0,0,0.06)"
-          strokeWidth="21"
-          clipPath="url(#fieldClip)"
+      {/* Subtle mowing stripes */}
+      {[0,1,2,3,4,5,6,7].map(i => (
+        <rect key={i}
+          x={i * 37.5} y={0} width={18.75} height={295}
+          fill="rgba(0,0,0,0.04)"
+          clipPath="url(#fieldShape)"
         />
       ))}
 
-      {/* === WARNING TRACK === */}
+      {/* ── OUTFIELD FENCE LINE ── */}
       <path
-        d="M 18,270 L 18,170 Q 150,22 282,170 L 282,270"
-        fill="none"
-        stroke="#c9a87a"
-        strokeWidth="18"
-        strokeLinejoin="round"
-        clipPath="url(#fieldClip)"
+        d="M 8,140 Q 150,3 292,140"
+        fill="none" stroke="rgba(255,255,255,0.5)" strokeWidth="2"
       />
 
-      {/* === FOUL LINES === */}
-      <line x1={HOME.x} y1={HOME.y} x2="5" y2="145" stroke="rgba(255,255,255,0.55)" strokeWidth="1.2" />
-      <line x1={HOME.x} y1={HOME.y} x2="295" y2="145" stroke="rgba(255,255,255,0.55)" strokeWidth="1.2" />
+      {/* ── FOUL LINES ── */}
+      <line x1={HOME.x} y1={HOME.y} x2={8}   y2={140}
+        stroke="white" strokeWidth="1.4" opacity="0.7"/>
+      <line x1={HOME.x} y1={HOME.y} x2={292} y2={140}
+        stroke="white" strokeWidth="1.4" opacity="0.7"/>
 
-      {/* === INFIELD DIRT CIRCLE === */}
-      <circle cx={MOUND.x} cy={MOUND.y} r="60" fill="url(#infieldDirtGrad)" />
+      {/* ── INFIELD DIRT (large D-shape arc) ── */}
+      <path
+        d={`
+          M ${HOME.x},${HOME.y}
+          L ${DIRT_R.x},${DIRT_R.y}
+          A ${DIRT_ARC_R},${DIRT_ARC_R} 0 1 0 ${DIRT_L.x},${DIRT_L.y}
+          L ${HOME.x},${HOME.y}
+          Z
+        `}
+        fill="url(#dirtGrad)"
+      />
 
-      {/* Infield dirt striping */}
-      <circle cx={MOUND.x} cy={MOUND.y} r="60" fill="none" stroke="rgba(180,130,80,0.3)" strokeWidth="8" strokeDasharray="4 4" />
+      {/* ── FOUL LINE OVERLAP on dirt (chalk marks) ── */}
+      <line x1={HOME.x} y1={HOME.y} x2={FIRST.x}  y2={FIRST.y}
+        stroke="rgba(255,255,255,0.55)" strokeWidth="1.2"/>
+      <line x1={HOME.x} y1={HOME.y} x2={THIRD.x} y2={THIRD.y}
+        stroke="rgba(255,255,255,0.55)" strokeWidth="1.2"/>
 
-      {/* === INFIELD GRASS DIAMOND === */}
+      {/* ── INFIELD GRASS (green diamond inside the dirt) ── */}
       <polygon
         points={`${SECOND.x},${SECOND.y} ${FIRST.x},${FIRST.y} ${HOME.x},${HOME.y} ${THIRD.x},${THIRD.y}`}
-        fill="url(#infieldGrassGrad)"
+        fill="url(#innerGrassGrad)"
       />
 
-      {/* Infield grass stripes */}
-      {[-1, 0, 1].map(i => (
-        <line
-          key={i}
-          x1={THIRD.x + i * 18} y1={THIRD.y}
-          x2={FIRST.x + i * 18} y2={FIRST.y}
-          stroke="rgba(0,0,0,0.07)"
-          strokeWidth="9"
-          clipPath="url(#fieldClip)"
-        />
-      ))}
+      {/* Baseline chalk lines on grass */}
+      <line x1={HOME.x} y1={HOME.y} x2={FIRST.x} y2={FIRST.y}
+        stroke="rgba(255,255,255,0.6)" strokeWidth="1.2"/>
+      <line x1={FIRST.x} y1={FIRST.y} x2={SECOND.x} y2={SECOND.y}
+        stroke="rgba(255,255,255,0.6)" strokeWidth="1.2"/>
+      <line x1={SECOND.x} y1={SECOND.y} x2={THIRD.x} y2={THIRD.y}
+        stroke="rgba(255,255,255,0.6)" strokeWidth="1.2"/>
+      <line x1={THIRD.x} y1={THIRD.y} x2={HOME.x} y2={HOME.y}
+        stroke="rgba(255,255,255,0.6)" strokeWidth="1.2"/>
 
-      {/* === BASELINE CHALK LINES === */}
-      <line x1={HOME.x} y1={HOME.y} x2={FIRST.x} y2={FIRST.y} stroke="rgba(255,255,255,0.5)" strokeWidth="1" />
-      <line x1={FIRST.x} y1={FIRST.y} x2={SECOND.x} y2={SECOND.y} stroke="rgba(255,255,255,0.5)" strokeWidth="1" />
-      <line x1={SECOND.x} y1={SECOND.y} x2={THIRD.x} y2={THIRD.y} stroke="rgba(255,255,255,0.5)" strokeWidth="1" />
-      <line x1={THIRD.x} y1={THIRD.y} x2={HOME.x} y2={HOME.y} stroke="rgba(255,255,255,0.5)" strokeWidth="1" />
+      {/* ── PITCHER'S MOUND ── */}
+      <ellipse cx={MOUND.x} cy={MOUND.y} rx="9" ry="7"
+        fill="#ca9a5c" stroke="#a07535" strokeWidth="0.8"/>
+      {/* Pitcher's rubber */}
+      <rect x={MOUND.x - 5} y={MOUND.y - 1} width="10" height="2.5" rx="0.5"
+        fill="white" opacity="0.85"/>
 
-      {/* === PITCHER'S MOUND === */}
-      <ellipse cx={MOUND.x} cy={MOUND.y} rx="10" ry="7.5" fill="#d4a070" stroke="#b08040" strokeWidth="0.8" />
-      <ellipse cx={MOUND.x} cy={MOUND.y + 1} rx="4" ry="2.5" fill="#c09050" />
+      {/* ── HOME PLATE DIRT CIRCLE ── */}
+      <circle cx={HOME.x} cy={HOME.y - 4} r="20" fill="#ca9a5c"/>
 
-      {/* === BASES === */}
-      {/* 2nd base */}
-      <rect x={SECOND.x - 5.5} y={SECOND.y - 5.5} width="11" height="11" rx="1"
-        fill={onSecond ? '#f5a623' : 'white'} stroke={onSecond ? '#d48a10' : '#bbb'} strokeWidth="0.8"
+      {/* ── ON-DECK CIRCLES ── */}
+      <circle cx="107" cy="270" r="8" fill="#b07a3a" opacity="0.8"/>
+      <circle cx="193" cy="270" r="8" fill="#b07a3a" opacity="0.8"/>
+
+      {/* ── DUGOUT BOXES (foul territory) ── */}
+      {/* Left dugout (3B side) */}
+      <rect x="-13" y="-7" width="30" height="13" rx="1.5"
+        fill="white" opacity="0.85"
+        transform="translate(44,228) rotate(-44)"/>
+      {/* Right dugout (1B side) */}
+      <rect x="-13" y="-7" width="30" height="13" rx="1.5"
+        fill="white" opacity="0.85"
+        transform="translate(256,228) rotate(44)"/>
+
+      {/* ── BASES ── */}
+      {/* Second base */}
+      <rect x={SECOND.x - 6} y={SECOND.y - 6} width="12" height="12" rx="1.5"
+        fill={onSecond ? '#f5a623' : 'white'}
+        stroke={onSecond ? '#c07800' : '#ccc'} strokeWidth="0.8"
         transform={`rotate(45,${SECOND.x},${SECOND.y})`}
-        style={{ transition: 'fill 0.2s' }}
+        style={{ transition: 'fill 0.25s' }}
       />
-      {/* 1st base */}
-      <rect x={FIRST.x - 5.5} y={FIRST.y - 5.5} width="11" height="11" rx="1"
-        fill={onFirst ? '#f5a623' : 'white'} stroke={onFirst ? '#d48a10' : '#bbb'} strokeWidth="0.8"
+      {/* First base */}
+      <rect x={FIRST.x - 6} y={FIRST.y - 6} width="12" height="12" rx="1.5"
+        fill={onFirst ? '#f5a623' : 'white'}
+        stroke={onFirst ? '#c07800' : '#ccc'} strokeWidth="0.8"
         transform={`rotate(45,${FIRST.x},${FIRST.y})`}
-        style={{ transition: 'fill 0.2s' }}
+        style={{ transition: 'fill 0.25s' }}
       />
-      {/* 3rd base */}
-      <rect x={THIRD.x - 5.5} y={THIRD.y - 5.5} width="11" height="11" rx="1"
-        fill={onThird ? '#f5a623' : 'white'} stroke={onThird ? '#d48a10' : '#bbb'} strokeWidth="0.8"
+      {/* Third base */}
+      <rect x={THIRD.x - 6} y={THIRD.y - 6} width="12" height="12" rx="1.5"
+        fill={onThird ? '#f5a623' : 'white'}
+        stroke={onThird ? '#c07800' : '#ccc'} strokeWidth="0.8"
         transform={`rotate(45,${THIRD.x},${THIRD.y})`}
-        style={{ transition: 'fill 0.2s' }}
+        style={{ transition: 'fill 0.25s' }}
       />
 
-      {/* === HOME PLATE === */}
+      {/* ── HOME PLATE ── */}
       <polygon
-        points={`${HOME.x},${HOME.y - 4} ${HOME.x + 5},${HOME.y} ${HOME.x + 5},${HOME.y + 6} ${HOME.x - 5},${HOME.y + 6} ${HOME.x - 5},${HOME.y}`}
-        fill="white" stroke="#bbb" strokeWidth="0.8"
+        points={`${HOME.x},${HOME.y - 6} ${HOME.x + 6},${HOME.y - 1} ${HOME.x + 6},${HOME.y + 5} ${HOME.x - 6},${HOME.y + 5} ${HOME.x - 6},${HOME.y - 1}`}
+        fill="white" stroke="#bbb" strokeWidth="0.7"
       />
 
       {/* Batter's boxes */}
-      <rect x={HOME.x - 22} y={HOME.y - 8} width="14" height="18" rx="1"
-        fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="0.8" />
-      <rect x={HOME.x + 8} y={HOME.y - 8} width="14" height="18" rx="1"
-        fill="none" stroke="rgba(255,255,255,0.35)" strokeWidth="0.8" />
+      <rect x={HOME.x - 22} y={HOME.y - 9}  width="13" height="18" rx="1"
+        fill="none" stroke="rgba(255,255,255,0.45)" strokeWidth="0.9"/>
+      <rect x={HOME.x + 9}  y={HOME.y - 9}  width="13" height="18" rx="1"
+        fill="none" stroke="rgba(255,255,255,0.45)" strokeWidth="0.9"/>
 
-      {/* === FIELDERS === */}
-      {/* Catcher */}
-      <PlayerDot x={HOME.x} y={HOME.y - 22} color="#2c4a8e" size={5.5} label="C" />
-      {/* Pitcher */}
-      <PlayerDot x={MOUND.x} y={MOUND.y - 14} color="#2c4a8e" size={5.5} label="P" />
-      {/* Other fielders */}
+      {/* ── FIELDERS (home team defending) ── */}
       {FIELDERS.map(f => (
-        <PlayerDot key={f.label} x={f.x} y={f.y} color="#2c4a8e" size={5.5} label={f.label} />
+        <PlayerDot
+          key={f.label}
+          x={f.x} y={f.y}
+          color={battingTeam === 0 ? '#1e3a8a' : '#7f1d1d'}
+          size={5.5}
+          label={f.label}
+        />
       ))}
 
-      {/* === RUNNERS ON BASE === */}
-      {onFirst && <PlayerDot x={FIRST.x} y={FIRST.y - 12} color="#e85d04" size={6} />}
-      {onSecond && <PlayerDot x={SECOND.x + 13} y={SECOND.y} color="#e85d04" size={6} />}
-      {onThird && <PlayerDot x={THIRD.x} y={THIRD.y - 12} color="#e85d04" size={6} />}
+      {/* ── RUNNERS ON BASE ── */}
+      {onFirst  && <PlayerDot x={FIRST.x - 13}  y={FIRST.y  - 2}  color="#e85d04" size={6.5} />}
+      {onSecond && <PlayerDot x={SECOND.x + 13} y={SECOND.y + 2}  color="#e85d04" size={6.5} />}
+      {onThird  && <PlayerDot x={THIRD.x + 13}  y={THIRD.y  - 2}  color="#e85d04" size={6.5} />}
 
-      {/* === BATTER === */}
+      {/* ── BATTER ── */}
       <PlayerDot
-        x={HOME.x - 16}
-        y={HOME.y - 1}
-        color={phase === 'swing' ? '#e85d04' : '#cc3300'}
-        size={6.5}
-      />
-
-      {/* Outfield fence line */}
-      <path
-        d="M 2,165 Q 150,2 298,165"
-        fill="none"
-        stroke="rgba(255,255,255,0.4)"
-        strokeWidth="1.5"
+        x={HOME.x - 17}
+        y={HOME.y - 3}
+        color={phase === 'swing' ? '#f97316' : '#e85d04'}
+        size={7}
       />
     </svg>
   );

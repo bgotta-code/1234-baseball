@@ -5,25 +5,20 @@ interface LineScoreProps {
   scores: [number, number];
   currentInning: number;
   currentHalf: number;
+  awayTeam: string;
+  homeTeam: string;
 }
 
-export function LineScore({ lineScore, scores, currentInning, currentHalf }: LineScoreProps) {
+export function LineScore({
+  lineScore, scores, currentInning, currentHalf, awayTeam, homeTeam,
+}: LineScoreProps) {
   const innings = Array.from({ length: INNINGS }, (_, i) => i + 1);
 
   function cellValue(teamIdx: number, inningIdx: number): string {
     const teamArr = lineScore?.[teamIdx];
     if (!teamArr) return '';
-    const completedHalves = teamArr.length;
-    if (inningIdx < completedHalves) {
-      return String(lineScore[teamIdx][inningIdx]);
-    }
-    // Current in-progress half-inning
-    const inningNum = inningIdx + 1;
-    if (inningNum === currentInning && teamIdx === currentHalf) {
-      return '-';
-    }
-    // Home team bottom of last inning if game ended early (walk-off) — show X
-    // (We just leave blank for future innings)
+    if (inningIdx < teamArr.length) return String(teamArr[inningIdx]);
+    if (inningIdx + 1 === currentInning && teamIdx === currentHalf) return '-';
     return '';
   }
 
@@ -31,41 +26,47 @@ export function LineScore({ lineScore, scores, currentInning, currentHalf }: Lin
     return inningIdx + 1 === currentInning && teamIdx === currentHalf;
   }
 
+  const teams = [awayTeam, homeTeam];
+
   return (
-    <div className="overflow-x-auto -mx-1">
-      <table className="w-full text-center border-collapse min-w-[280px]" style={{ fontSize: 12 }}>
+    <div className="overflow-x-auto">
+      <table className="w-full text-center border-collapse" style={{ fontSize: 11, minWidth: 270 }}>
         <thead>
           <tr>
-            <th className="w-12 text-left pl-2 text-gray-400 font-medium py-1">Team</th>
+            <th className="text-left text-white/35 font-semibold py-0.5 pr-1" style={{ width: 52 }}></th>
             {innings.map(n => (
-              <th key={n} className="text-gray-400 font-medium py-1 w-7">{n}</th>
+              <th key={n} className="text-white/35 font-semibold py-0.5" style={{ width: 24 }}>{n}</th>
             ))}
-            <th className="text-gray-600 font-semibold py-1 w-8 border-l border-gray-200 pl-1">R</th>
+            <th className="text-white/60 font-bold py-0.5 pl-1 border-l border-white/15" style={{ width: 26 }}>R</th>
           </tr>
         </thead>
         <tbody>
-          {(['Away', 'Home'] as const).map((team, tIdx) => (
-            <tr key={team}>
-              <td className="text-left pl-2 text-gray-600 font-semibold py-1.5">{team}</td>
+          {teams.map((team, tIdx) => (
+            <tr key={tIdx}>
+              <td className="text-left text-white/65 font-bold py-1 pr-1 truncate" style={{ maxWidth: 52 }}>
+                {team}
+              </td>
               {innings.map((_, iIdx) => {
                 const active = isActive(tIdx, iIdx);
                 const val = cellValue(tIdx, iIdx);
                 return (
                   <td
                     key={iIdx}
-                    className={`py-1.5 rounded font-medium transition-all ${
-                      active
-                        ? 'text-blue-700 bg-blue-50 font-bold'
+                    className="py-1 font-semibold transition-all rounded"
+                    style={{
+                      color: active
+                        ? '#60a5fa'
                         : val !== ''
-                          ? 'text-gray-700'
-                          : 'text-gray-300'
-                    }`}
+                          ? 'rgba(255,255,255,0.8)'
+                          : 'rgba(255,255,255,0.18)',
+                      background: active ? 'rgba(96,165,250,0.15)' : 'transparent',
+                    }}
                   >
                     {val === '' ? '·' : val}
                   </td>
                 );
               })}
-              <td className="py-1.5 font-bold text-gray-800 border-l border-gray-200 pl-1">
+              <td className="py-1 font-black text-white pl-1 border-l border-white/15">
                 {scores[tIdx]}
               </td>
             </tr>
