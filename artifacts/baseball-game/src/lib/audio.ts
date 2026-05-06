@@ -303,6 +303,21 @@ export function playHomeRunFanfare() {
   } catch (_) {}
 }
 
+// ── SCORE RIPPLE — short crowd burst as each run crosses home plate ───────────
+export function playScoreRipple() {
+  if (_muted) return;
+  try {
+    const ctx = getCtx(), t = ctx.currentTime;
+    const dur = 1.3;
+    const v = makeCrowdVoices(ctx, dur, t, 'cheer', 22);
+    reverb(ctx, v, 0.52).connect(ctx.destination);
+    v.gain.setValueAtTime(0.001, t);
+    v.gain.linearRampToValueAtTime(0.07, t + 0.11);
+    v.gain.linearRampToValueAtTime(0.045, t + 0.5);
+    v.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  } catch (_) {}
+}
+
 // ── HIGH-LEVEL HELPERS ───────────────────────────────────────────────────────
 // half=0 → away batting (home team pitching); half=1 → home batting
 // Home crowd cheers when home team benefits, groans otherwise.

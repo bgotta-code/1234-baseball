@@ -6,6 +6,7 @@ import {
   playSwoosh,
   playHitSound,
   playOutSound,
+  playScoreRipple,
   isMuted,
   toggleMute,
 } from '@/lib/audio';
@@ -65,48 +66,63 @@ export function Game({ awayTeam, homeTeam, onNewGame }: GameProps) {
   }, []);
 
   // Animate runners advancing base by base after a hit.
-  // prevBases = bases state before the hit; dist = 1–4
-  const startRunnerAnimation = useCallback((prevBases: [boolean, boolean, boolean], dist: number) => {
+  // prevBases = bases state before the hit; dist = 1–4; twoOut = 2 outs were on the board
+  const startRunnerAnimation = useCallback((
+    prevBases: [boolean, boolean, boolean],
+    dist: number,
+    twoOut: boolean,
+  ) => {
     animTimersRef.current.forEach(clearTimeout);
     animTimersRef.current = [];
 
     const nextId = () => String(++runnerIdRef.current);
 
-    // Build the starting lineup: existing runners in order 3B→2B→1B, then batter at home
-    const initial: Array<{ id: string; pos: number }> = [];
-    if (prevBases[2]) initial.push({ id: nextId(), pos: 3 });
-    if (prevBases[1]) initial.push({ id: nextId(), pos: 2 });
-    if (prevBases[0]) initial.push({ id: nextId(), pos: 1 });
-    initial.push({ id: nextId(), pos: 0 }); // batter starts at home plate
+    // With 2 outs, existing runners advance hitDist+1 bases (matching gameLogic).
+    // Batter always advances exactly hitDist bases.
+    // On HR everyone scores regardless — twoOut doesn't add extra steps.
+    const runnerAdv = (twoOut && dist < 4) ? dist + 1 : dist;
+    const batterAdv = dist; // batter always lands at hitDist-th base (or home on HR)
+    const totalSteps = Math.max(runnerAdv, batterAdv); // usually runnerAdv ≥ batterAdv
+
+    // Each runner knows their maxPos so we cap instead of filter mid-animation.
+    // pos 4 = HOME (scored) — runner stays visible there until cleanT removes them.
+    const initial: Array<{ id: string; pos: number; maxPos: number }> = [];
+    if (prevBases[2]) initial.push({ id: nextId(), pos: 3, maxPos: 4 });
+    if (prevBases[1]) initial.push({ id: nextId(), pos: 2, maxPos: 4 });
+    if (prevBases[0]) initial.push({ id: nextId(), pos: 1, maxPos: 4 });
+    initial.push({ id: nextId(), pos: 0, maxPos: batterAdv }); // batter caps at their base
 
     // How many runners will cross home plate on this hit?
     const scoringCount =
-      (prevBases[2] && 3 + dist >= 4 ? 1 : 0) +
-      (prevBases[1] && 2 + dist >= 4 ? 1 : 0) +
-      (prevBases[0] && 1 + dist >= 4 ? 1 : 0) +
-      (dist >= 4 ? 1 : 0); // batter scores only on HR
+      (prevBases[2] && 3 + runnerAdv >= 4 ? 1 : 0) +
+      (prevBases[1] && 2 + runnerAdv >= 4 ? 1 : 0) +
+      (prevBases[0] && 1 + runnerAdv >= 4 ? 1 : 0) +
+      (batterAdv >= 4 ? 1 : 0);
 
     setAnimRunners(initial);
 
-    const STEP_MS = 500; // ms between each base advancement
+    const STEP_MS = 500;
 
-    for (let step = 1; step <= dist; step++) {
+    for (let step = 1; step <= totalSteps; step++) {
       const t = setTimeout(() => {
         setAnimRunners(prev =>
           prev === null ? null :
-          prev.map(r => ({ ...r, pos: r.pos + 1 }))
-              .filter(r => r.pos <= 4) // keep pos=4 so they animate TO home before disappearing
+          // Cap each runner at their individual maxPos — no mid-animation removal
+          prev.map(r => ({ ...r, pos: Math.min(r.pos + 1, r.maxPos) }))
         );
       }, step * STEP_MS);
       animTimersRef.current.push(t);
     }
 
-    // Remove scored runners + fire score flash(es) after CSS transition completes
+    // Remove scored runners (pos > 3) + fire flash + sound after CSS transition done
     const cleanT = setTimeout(() => {
       setAnimRunners(prev =>
         prev === null ? null : prev.filter(r => r.pos <= 3)
       );
       if (scoringCount > 0) {
+        for (let i = 0; i < scoringCount; i++) {
+          setTimeout(() => playScoreRipple(), i * 80);
+        }
         const flashes = Array.from({ length: scoringCount }, (_, i) => ({
           id: `${Date.now()}-${i}`,
           delay: i * 80,
@@ -116,11 +132,11 @@ export function Game({ awayTeam, homeTeam, onNewGame }: GameProps) {
           setHomeFlashes(f => f.filter(x => !flashes.some(n => n.id === x.id)));
         }, 1100);
       }
-    }, dist * STEP_MS + 460);
+    }, totalSteps * STEP_MS + 460);
     animTimersRef.current.push(cleanT);
 
-    // After all steps + transition, hand back control to game state
-    const endT = setTimeout(() => setAnimRunners(null), (dist + 0.7) * STEP_MS + 460);
+    // Hand back control to game state after animation fully completes
+    const endT = setTimeout(() => setAnimRunners(null), (totalSteps + 0.7) * STEP_MS + 460);
     animTimersRef.current.push(endT);
   }, []);
 
@@ -171,7 +187,7 @@ export function Game({ awayTeam, homeTeam, onNewGame }: GameProps) {
       if (atBatResult.type === 'hit') {
         // Capture bases BEFORE state update so animation starts from correct positions
         const prevBases = [...state.bases] as [boolean, boolean, boolean];
-        startRunnerAnimation(prevBases, atBatResult.hitDist!);
+        startRunnerAnimation(prevBases, atBatResult.hitDist!, state.outs === 2);
         playHitSound(atBatResult.hitDist!, state.half);
         setResult({ message: atBatResult.message, type: 'hit' });
         setState(atBatResult.newState);
