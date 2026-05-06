@@ -103,7 +103,7 @@ export function Game({ awayTeam, homeTeam, onNewGame }: GameProps) {
       const atBatResult = resolveAtBat(state);
 
       if (atBatResult.type === 'hit') {
-        playHitSound(atBatResult.hitDist!);
+        playHitSound(atBatResult.hitDist!, state.half);
         setResult({ message: atBatResult.message, type: 'hit' });
         setState(atBatResult.newState);
       } else if (atBatResult.type === 'out') {

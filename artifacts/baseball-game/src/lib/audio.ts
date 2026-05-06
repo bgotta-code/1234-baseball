@@ -297,16 +297,24 @@ export function playHomeRunFanfare() {
 }
 
 // ── HIGH-LEVEL HELPERS ───────────────────────────────────────────────────────
-export function playHitSound(dist: number) {
+// half=0 → away batting (home team pitching); half=1 → home batting
+// Home crowd cheers when home team benefits, groans otherwise.
+export function playHitSound(dist: number, half: number) {
   if (_muted) return;
   playBatCrack(dist);
-  if (dist === 4) { playHomeRunFanfare(); playCrowdRoar(4, 0.2); }
-  else playCrowdRoar(dist, 0.15);
+  if (half === 0) {
+    // Away team hit — home crowd groans
+    playCrowdGroan();
+  } else {
+    // Home team hit — home crowd cheers
+    if (dist === 4) { playHomeRunFanfare(); playCrowdRoar(4, 0.2); }
+    else playCrowdRoar(dist, 0.15);
+  }
 }
 
 export function playOutSound(half: number) {
   if (_muted) return;
   playGloveThud();
-  if (half === 0) playCrowdCheer();
-  else playCrowdGroan();
+  if (half === 0) playCrowdCheer(); // away out → home crowd cheers
+  else playCrowdGroan();             // home out → home crowd groans
 }
