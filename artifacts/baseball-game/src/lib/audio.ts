@@ -318,6 +318,21 @@ export function playScoreRipple() {
   } catch (_) {}
 }
 
+// ── START CHEER — crowd roar when Play Ball is clicked ───────────────────────
+export function playStartCheer() {
+  if (_muted) return;
+  try {
+    const ctx = getCtx(), t = ctx.currentTime;
+    const dur = 3.8;
+    const v = makeCrowdVoices(ctx, dur, t, 'cheer', 50);
+    reverb(ctx, v, 0.55).connect(ctx.destination);
+    v.gain.setValueAtTime(0.001, t);
+    v.gain.linearRampToValueAtTime(0.13, t + 0.35);
+    v.gain.linearRampToValueAtTime(0.10, t + 1.8);
+    v.gain.exponentialRampToValueAtTime(0.001, t + dur);
+  } catch (_) {}
+}
+
 // ── HIGH-LEVEL HELPERS ───────────────────────────────────────────────────────
 // half=0 → away batting (home team pitching); half=1 → home batting
 // Home crowd cheers when home team benefits, groans otherwise.

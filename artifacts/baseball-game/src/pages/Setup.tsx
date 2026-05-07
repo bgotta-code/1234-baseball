@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { unlockAudio, playStartCheer } from '@/lib/audio';
 
 interface SetupProps {
   onStart: (awayName: string, homeName: string) => void;
@@ -9,6 +10,8 @@ export function Setup({ onStart }: SetupProps) {
   const [homeName, setHomeName] = useState('');
 
   const handleStart = () => {
+    unlockAudio();
+    playStartCheer();
     onStart(
       awayName.trim() || 'Away',
       homeName.trim() || 'Home',

@@ -106,9 +106,11 @@ interface StadiumProps {
   runners?: AnimRunner[];
   /** Score flash events — each triggers a ring ripple + starburst at home plate */
   homeFlashes?: ScoreFlash[];
+  /** Ball position — animates from batter to landing spot via CSS transition */
+  ball?: { x: number; y: number };
 }
 
-export function Stadium({ bases, phase, battingTeam, runners, homeFlashes }: StadiumProps) {
+export function Stadium({ bases, phase, battingTeam, runners, homeFlashes, ball }: StadiumProps) {
   const isAnimating = runners !== undefined;
 
   // Determine which bases appear occupied — follow animation positions if active
@@ -233,7 +235,7 @@ export function Stadium({ bases, phase, battingTeam, runners, homeFlashes }: Sta
       {isAnimating
         ? /* Animated: RunnerDot with CSS cx/cy transition, stable keys */
           runners!.map(r => {
-            const coord = BASE_XY[Math.min(r.pos, 3)] ?? HOME;
+            const coord = BASE_XY[r.pos] ?? HOME; // pos 4 = HOME, must NOT be capped at 3
             return <RunnerDot key={r.id} x={coord.x} y={coord.y} />;
           })
         : /* Static: plain PlayerDots exactly on base centers */
@@ -250,6 +252,16 @@ export function Stadium({ bases, phase, battingTeam, runners, homeFlashes }: Sta
           x={HOME.x - 17} y={HOME.y - 3}
           color={phase === 'swing' ? '#f97316' : '#e85d04'}
           size={7}
+        />
+      )}
+
+      {/* Ball travel — white dot animating from batter to landing spot */}
+      {ball && (
+        <circle
+          className="ball-dot"
+          cx={ball.x} cy={ball.y} r="4"
+          fill="white" stroke="rgba(180,180,180,0.7)" strokeWidth="0.6"
+          style={{ filter: 'drop-shadow(0 0 3px rgba(255,255,255,0.7))' }}
         />
       )}
 

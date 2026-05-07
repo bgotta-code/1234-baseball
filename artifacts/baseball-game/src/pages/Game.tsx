@@ -28,6 +28,18 @@ type Screen = 'game' | 'ad' | 'gameover';
 type ResultInfo = { message: string; type: 'hit' | 'out' | 'side-retired' } | null;
 type RevealInfo = { pitcherNum: number } | null;
 
+// Ball landing coordinates by hit distance (SVG viewBox 0 0 300 295)
+const BALL_LANDINGS: Record<number, Array<{ x: number; y: number }>> = {
+  1: [{ x: 80, y: 140 }, { x: 150, y: 110 }, { x: 220, y: 140 }], // single – in front of LF/CF/RF
+  2: [{ x: 30, y: 158 }, { x: 270, y: 158 }],                      // double – left/right corner
+  3: [{ x: 112, y: 88 }, { x: 188, y: 88 }],                       // triple – LF-CF/RF-CF gap
+  4: [{ x: 150, y: -8 }],                                            // HR – over the CF fence
+};
+function pickLanding(dist: number): { x: number; y: number } {
+  const arr = BALL_LANDINGS[dist] ?? BALL_LANDINGS[1];
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
 export function Game({ awayTeam, homeTeam, onNewGame }: GameProps) {
   const [state, setState] = useState<GameState>(initState);
   const [screen, setScreen] = useState<Screen>('game');
@@ -36,13 +48,15 @@ export function Game({ awayTeam, homeTeam, onNewGame }: GameProps) {
   const [selectedNum, setSelectedNum] = useState<number | null>(null);
   const [muted, setMuted] = useState(isMuted);
   const [adCountdown, setAdCountdown] = useState(15);
-  const [animRunners, setAnimRunners] = useState<Array<{ id: string; pos: number }> | null>(null);
+  const [animRunners, setAnimRunners] = useState<Array<{ id: string; pos: number; maxPos: number }> | null>(null);
   const [homeFlashes, setHomeFlashes] = useState<Array<{ id: string; delay: number }>>([]);
+  const [ballPos, setBallPos] = useState<{ x: number; y: number } | null>(null);
 
   const adTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const postAdCallback = useRef<(() => void) | null>(null);
   const animTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const ballTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const runnerIdRef = useRef(0);
 
   useEffect(() => {
@@ -62,6 +76,7 @@ export function Game({ awayTeam, homeTeam, onNewGame }: GameProps) {
       if (adTimerRef.current) clearInterval(adTimerRef.current);
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
       animTimersRef.current.forEach(clearTimeout);
+      ballTimersRef.current.forEach(clearTimeout);
     };
   }, []);
 
@@ -121,11 +136,11 @@ export function Game({ awayTeam, homeTeam, onNewGame }: GameProps) {
       );
       if (scoringCount > 0) {
         for (let i = 0; i < scoringCount; i++) {
-          setTimeout(() => playScoreRipple(), i * 80);
+          setTimeout(() => playScoreRipple(), i * 220);
         }
         const flashes = Array.from({ length: scoringCount }, (_, i) => ({
           id: `${Date.now()}-${i}`,
-          delay: i * 80,
+          delay: i * 220,
         }));
         setHomeFlashes(f => [...f, ...flashes]);
         setTimeout(() => {
@@ -187,8 +202,16 @@ export function Game({ awayTeam, homeTeam, onNewGame }: GameProps) {
       if (atBatResult.type === 'hit') {
         // Capture bases BEFORE state update so animation starts from correct positions
         const prevBases = [...state.bases] as [boolean, boolean, boolean];
-        startRunnerAnimation(prevBases, atBatResult.hitDist!, state.outs === 2);
-        playHitSound(atBatResult.hitDist!, state.half);
+        const dist = atBatResult.hitDist!;
+        // Ball travel animation: start at batter, travel to landing spot
+        ballTimersRef.current.forEach(clearTimeout);
+        ballTimersRef.current = [];
+        const landing = pickLanding(dist);
+        setBallPos({ x: 160, y: 268 }); // batter contact point
+        ballTimersRef.current.push(setTimeout(() => setBallPos(landing), 50));
+        ballTimersRef.current.push(setTimeout(() => setBallPos(null), 800));
+        startRunnerAnimation(prevBases, dist, state.outs === 2);
+        playHitSound(dist, state.half);
         setResult({ message: atBatResult.message, type: 'hit' });
         setState(atBatResult.newState);
       } else if (atBatResult.type === 'out') {
@@ -408,6 +431,7 @@ export function Game({ awayTeam, homeTeam, onNewGame }: GameProps) {
             battingTeam={battingTeamIdx}
             runners={animRunners ?? undefined}
             homeFlashes={homeFlashes}
+            ball={ballPos ?? undefined}
           />
         </div>
 
@@ -449,7 +473,9 @@ export function Game({ awayTeam, homeTeam, onNewGame }: GameProps) {
         {/* Action panel */}
         <div className="rounded-2xl border border-white/15 p-3.5"
           style={{ background: 'rgba(0,0,0,0.42)' }}>
-          <p className="text-[10px] text-white/45 mb-2.5 font-bold uppercase tracking-wide">{actionLabel}</p>
+          <p className={`text-[11px] mb-2.5 font-bold uppercase tracking-wide ${
+          selectedNum === null ? 'text-white prompt-flash' : 'text-white/45'
+        }`}>{actionLabel}</p>
 
           <div className="grid grid-cols-4 gap-2 mb-2.5">
             {[1, 2, 3, 4].map(n => (

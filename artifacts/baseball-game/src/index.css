@@ -82,6 +82,20 @@
   transition: cx 0.44s ease-in-out, cy 0.44s ease-in-out;
 }
 
+/* Ball travel animation */
+.ball-dot {
+  transition: cx 0.32s ease-in, cy 0.32s ease-in;
+}
+
+/* Action label flash — pulses until number is selected */
+@keyframes prompt-flash {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0.2; }
+}
+.prompt-flash {
+  animation: prompt-flash 1.1s ease-in-out infinite;
+}
+
 /* Home plate score flash — ring ripple + starburst */
 .score-ring {
   transform-box: fill-box;
