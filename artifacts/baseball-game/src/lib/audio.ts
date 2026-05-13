@@ -286,6 +286,44 @@ export function playGloveThud() {
   } catch (_) {}
 }
 
+// ── HIT STINGERS — ascending brass stab scaled to hit distance ───────────────
+// dist=1 → 2-note pop · dist=2 → 3-note riff · dist=3 → 4-note climb · dist=4 uses fanfare
+export function playHitStinger(dist: number) {
+  if (_muted || dist === 4) return; // HR keeps its own fanfare
+  try {
+    const ctx = getCtx();
+    // [freq Hz, note duration s] — sequences scale with hit power
+    const seqs: [number, number][][] = [
+      [],
+      [[392, 0.14], [523, 0.19]],                                     // single: G4 → C5
+      [[392, 0.12], [494, 0.12], [659, 0.21]],                       // double: G4 → B4 → E5
+      [[349, 0.11], [440, 0.11], [554, 0.11], [880, 0.26]],         // triple: F4 → A4 → C#5 → A5
+    ];
+    const seq = seqs[Math.min(dist, 3)];
+    let offset = 0.06; // slight gap after bat crack
+    seq.forEach(([freq, dur]) => {
+      const t = ctx.currentTime + offset;
+      // Two slightly-detuned sawtooth oscillators for a warm "stadium organ" brass texture
+      [1, 1.006].forEach(detune => {
+        const osc = ctx.createOscillator();
+        const filt = ctx.createBiquadFilter();
+        const g = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.value = freq * detune;
+        filt.type = 'lowpass';
+        filt.frequency.value = 1800 + dist * 200;
+        g.gain.setValueAtTime(0.001, t);
+        g.gain.linearRampToValueAtTime(0.10, t + 0.016);
+        g.gain.setValueAtTime(0.10, t + dur - 0.025);
+        g.gain.linearRampToValueAtTime(0.001, t + dur);
+        osc.connect(filt); filt.connect(g); g.connect(ctx.destination);
+        osc.start(t); osc.stop(t + dur + 0.01);
+      });
+      offset += dur;
+    });
+  } catch (_) {}
+}
+
 // ── HOME RUN FANFARE ─────────────────────────────────────────────────────────
 export function playHomeRunFanfare() {
   if (_muted) return;
@@ -339,6 +377,7 @@ export function playStartCheer() {
 export function playHitSound(dist: number, half: number) {
   if (_muted) return;
   playBatCrack(dist);
+  playHitStinger(dist); // ascending brass stab scaled to hit distance
   if (half === 0) {
     // Away team hit — home crowd groans (louder for bigger hits)
     playCrowdGroan(dist);
