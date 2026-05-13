@@ -115,7 +115,7 @@ export function Setup({ isPaid, onStart }: SetupProps) {
                   <span className={`text-[9px] font-bold uppercase tracking-wide mt-0.5 ${
                     locked ? 'text-white/20' : selected ? 'text-green-400' : 'text-white/35'
                   }`}>
-                    {locked ? 'PRO' : `inning${n > 1 ? 's' : ''}`}
+                    {`inning${n > 1 ? 's' : ''}`}
                   </span>
                   {locked && (
                     <span className="absolute top-1.5 right-1.5 text-[9px] opacity-40">🔒</span>
