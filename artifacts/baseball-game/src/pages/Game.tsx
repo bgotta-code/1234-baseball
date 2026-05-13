@@ -217,12 +217,12 @@ export function Game({ awayTeam, homeTeam, onNewGame }: GameProps) {
       } else if (atBatResult.type === 'out') {
         playOutSound(state.half);
         showReveal(state.pitcherChoice!);
-        setResult({ message: 'Out', type: 'out' });
+        setResult({ message: `${state.outs + 1} Out${state.outs + 1 > 1 ? 's' : ''}`, type: 'out' });
         setState(atBatResult.newState);
       } else {
         playOutSound(state.half);
         showReveal(state.pitcherChoice!);
-        setResult({ message: 'Out — side retired', type: 'out' });
+        setResult({ message: '3 Outs — Side Retired', type: 'out' });
         setState(atBatResult.newState);
         setTimeout(() => {
           startAd(() => {
