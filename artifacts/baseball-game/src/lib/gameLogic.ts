@@ -138,7 +138,12 @@ export function nextHalf(
     return { newState: baseNext, gameOver: false };
   }
 
-  // Past scheduled innings — check the score
+  // Bottom half of an extra inning still needs to be played
+  if (half === 1) {
+    return { newState: baseNext, gameOver: false };
+  }
+
+  // Past scheduled innings, both halves complete — check the score
   const [away, home] = state.scores;
   const tied = away === home;
 
