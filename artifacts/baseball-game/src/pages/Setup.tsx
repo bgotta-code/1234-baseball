@@ -126,7 +126,7 @@ export function Setup({ isPaid, onStart }: SetupProps) {
           </div>
           {!isPaid && (
             <p className="text-[10px] text-white/30 text-center">
-              Upgrade to Pro for 5, 7 &amp; 9-inning games · shorter ads · unlimited extra innings
+              Upgrade to Pro for 5, 7 and 9-inning games.<br />Shorter ads and unlimited extra innings.
             </p>
           )}
         </div>
