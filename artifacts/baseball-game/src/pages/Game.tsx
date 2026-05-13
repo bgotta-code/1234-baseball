@@ -243,8 +243,13 @@ export function Game({ awayTeam, homeTeam, innings, isPaid, onNewGame }: GamePro
       } else {
         playOutSound(state.half);
         showReveal(state.pitcherChoice!);
-        setResult({ message: '3 Outs — Side Retired', type: 'out' });
-        setState(atBatResult.newState);
+        const ns3 = atBatResult.newState;
+        const isEndOfInning = state.half === 1 && state.inning >= innings;
+        const isTied = ns3.scores[0] === ns3.scores[1];
+        const sideRetiredMsg =
+          isEndOfInning && isTied ? 'Extra Innings!' : '3 Outs — Side Retired';
+        setResult({ message: sideRetiredMsg, type: 'out' });
+        setState(ns3);
         setTimeout(() => {
           startAd(() => {
             const { newState, gameOver } = nextHalf(atBatResult.newState, { innings, isPaid });
