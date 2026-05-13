@@ -2,12 +2,16 @@ import { useState } from 'react';
 import { unlockAudio, playStartCheer } from '@/lib/audio';
 
 interface SetupProps {
-  onStart: (awayName: string, homeName: string) => void;
+  isPaid: boolean;
+  onStart: (awayName: string, homeName: string, innings: number) => void;
 }
 
-export function Setup({ onStart }: SetupProps) {
+const INNING_OPTIONS = [3, 5, 7, 9];
+
+export function Setup({ isPaid, onStart }: SetupProps) {
   const [awayName, setAwayName] = useState('');
   const [homeName, setHomeName] = useState('');
+  const [innings, setInnings] = useState(3);
 
   const handleStart = () => {
     unlockAudio();
@@ -15,6 +19,7 @@ export function Setup({ onStart }: SetupProps) {
     onStart(
       awayName.trim() || 'Away',
       homeName.trim() || 'Home',
+      innings,
     );
   };
 
@@ -71,6 +76,59 @@ export function Setup({ onStart }: SetupProps) {
               onKeyDown={e => { if (e.key === 'Enter') handleStart(); }}
             />
           </div>
+        </div>
+
+        {/* Inning selector */}
+        <div
+          className="rounded-2xl border border-white/15 p-4 flex flex-col gap-3"
+          style={{ background: 'rgba(0,0,0,0.4)' }}
+        >
+          <p className="text-white/60 text-[12px] uppercase tracking-widest font-semibold text-center">
+            Game Length
+          </p>
+          <div className="grid grid-cols-4 gap-2">
+            {INNING_OPTIONS.map(n => {
+              const locked = !isPaid && n > 3;
+              const selected = innings === n;
+              return (
+                <button
+                  key={n}
+                  onClick={() => { if (!locked) setInnings(n); }}
+                  disabled={locked}
+                  className={`relative flex flex-col items-center justify-center py-3 rounded-xl border font-black text-[18px] transition-all ${
+                    locked
+                      ? 'border-white/10 text-white/20 cursor-not-allowed'
+                      : selected
+                        ? 'border-green-500/60 text-white'
+                        : 'border-white/20 text-white/60 active:scale-95'
+                  }`}
+                  style={{
+                    background: locked
+                      ? 'rgba(255,255,255,0.03)'
+                      : selected
+                        ? 'linear-gradient(135deg,rgba(22,163,74,0.35),rgba(21,128,61,0.35))'
+                        : 'rgba(255,255,255,0.06)',
+                    boxShadow: selected ? '0 0 12px rgba(22,163,74,0.25)' : 'none',
+                  }}
+                >
+                  {n}
+                  <span className={`text-[9px] font-bold uppercase tracking-wide mt-0.5 ${
+                    locked ? 'text-white/20' : selected ? 'text-green-400' : 'text-white/35'
+                  }`}>
+                    {locked ? 'PRO' : `inning${n > 1 ? 's' : ''}`}
+                  </span>
+                  {locked && (
+                    <span className="absolute top-1.5 right-1.5 text-[9px] opacity-40">🔒</span>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+          {!isPaid && (
+            <p className="text-[10px] text-white/30 text-center">
+              Upgrade to Pro for 5, 7 &amp; 9-inning games
+            </p>
+          )}
         </div>
 
         {/* How to play */}

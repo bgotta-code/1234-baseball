@@ -1,4 +1,4 @@
-export const INNINGS = 9;
+export const INNINGS = 9; // kept for any legacy references; prefer the per-game `innings` prop
 
 export const HIT_NAMES: Record<number, string> = {
   1: 'Single',
@@ -18,6 +18,7 @@ export interface GameState {
   phase: 'pitch' | 'swing';
   lineScore: [number[], number[]]; // per-inning runs: [away[], home[]]
   halfInningStartScores: [number, number]; // scores at the start of this half-inning
+  extraInnings: number; // how many extra innings have been played
 }
 
 export function initState(): GameState {
@@ -32,6 +33,7 @@ export function initState(): GameState {
     phase: 'pitch',
     lineScore: [[], []],
     halfInningStartScores: [0, 0],
+    extraInnings: 0,
   };
 }
 
@@ -97,7 +99,15 @@ export function resolveAtBat(state: GameState): AtBatResult {
   }
 }
 
-export function nextHalf(state: GameState): { newState: GameState; gameOver: boolean } {
+export interface NextHalfConfig {
+  innings: number;  // scheduled game length
+  isPaid: boolean;  // paid = unlimited extra innings; free = max 1 extra
+}
+
+export function nextHalf(
+  state: GameState,
+  config: NextHalfConfig,
+): { newState: GameState; gameOver: boolean } {
   // Record runs scored this half-inning in the linescore
   const runsThisHalf = state.scores[state.half] - state.halfInningStartScores[state.half];
   const newLineScore: [number[], number[]] = [
@@ -110,33 +120,43 @@ export function nextHalf(state: GameState): { newState: GameState; gameOver: boo
   half++;
   if (half > 1) { half = 0; inning++; }
 
-  if (inning > INNINGS) {
-    return {
-      newState: {
-        ...state,
-        half,
-        inning,
-        outs: 0,
-        bases: [false, false, false],
-        lineScore: newLineScore,
-      },
-      gameOver: true,
-    };
+  const baseNext: GameState = {
+    ...state,
+    half,
+    inning,
+    outs: 0,
+    bases: [false, false, false],
+    pitcherChoice: null,
+    batterChoice: null,
+    phase: 'pitch',
+    lineScore: newLineScore,
+    halfInningStartScores: [...state.scores] as [number, number],
+  };
+
+  // Still within scheduled innings — keep playing
+  if (inning <= config.innings) {
+    return { newState: baseNext, gameOver: false };
   }
 
+  // Past scheduled innings — check the score
+  const [away, home] = state.scores;
+  const tied = away === home;
+
+  if (!tied) {
+    // Clear winner after regulation
+    return { newState: baseNext, gameOver: true };
+  }
+
+  // Tied — decide whether to play an extra inning
+  const maxExtra = config.isPaid ? Infinity : 1;
+  if (state.extraInnings >= maxExtra) {
+    // No more extras allowed (free tier limit) — official tie
+    return { newState: baseNext, gameOver: true };
+  }
+
+  // Play an extra inning
   return {
-    newState: {
-      ...state,
-      half,
-      inning,
-      outs: 0,
-      bases: [false, false, false],
-      pitcherChoice: null,
-      batterChoice: null,
-      phase: 'pitch',
-      lineScore: newLineScore,
-      halfInningStartScores: [...state.scores] as [number, number],
-    },
+    newState: { ...baseNext, extraInnings: state.extraInnings + 1 },
     gameOver: false,
   };
 }

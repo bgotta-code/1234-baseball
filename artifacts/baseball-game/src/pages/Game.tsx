@@ -14,13 +14,14 @@ import {
   initState,
   resolveAtBat,
   nextHalf,
-  INNINGS,
   GameState,
 } from '@/lib/gameLogic';
 
 interface GameProps {
   awayTeam: string;
   homeTeam: string;
+  innings: number;
+  isPaid: boolean;
   onNewGame: () => void;
 }
 
@@ -40,7 +41,7 @@ function pickLanding(dist: number): { x: number; y: number } {
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
-export function Game({ awayTeam, homeTeam, onNewGame }: GameProps) {
+export function Game({ awayTeam, homeTeam, innings, isPaid, onNewGame }: GameProps) {
   const [state, setState] = useState<GameState>(initState);
   const [screen, setScreen] = useState<Screen>('game');
   const [result, setResult] = useState<ResultInfo>(null);
@@ -162,11 +163,12 @@ export function Game({ awayTeam, homeTeam, onNewGame }: GameProps) {
   }, []);
 
   const startAd = useCallback((callback: () => void) => {
+    const adDuration = isPaid ? 5 : 15;
     postAdCallback.current = callback;
-    setAdCountdown(15);
+    setAdCountdown(adDuration);
     setScreen('ad');
     if (adTimerRef.current) clearInterval(adTimerRef.current);
-    let count = 15;
+    let count = adDuration;
     adTimerRef.current = setInterval(() => {
       count--;
       setAdCountdown(count);
@@ -226,7 +228,7 @@ export function Game({ awayTeam, homeTeam, onNewGame }: GameProps) {
         setState(atBatResult.newState);
         setTimeout(() => {
           startAd(() => {
-            const { newState, gameOver } = nextHalf(atBatResult.newState);
+            const { newState, gameOver } = nextHalf(atBatResult.newState, { innings, isPaid });
             if (gameOver) {
               setState(newState);
               setScreen('gameover');
@@ -252,7 +254,10 @@ export function Game({ awayTeam, homeTeam, onNewGame }: GameProps) {
     ? `${battingTeamName} pitcher — choose your pitch`
     : '📱 Hand the device to the batter';
 
-  const inningLabel = `Inning ${state.inning} — ${state.half === 0 ? 'Top' : 'Bottom'}`;
+  const isExtraInning = state.inning > innings;
+  const inningLabel = isExtraInning
+    ? `Extra Inning — ${state.half === 0 ? 'Top' : 'Bottom'}`
+    : `Inning ${state.inning} — ${state.half === 0 ? 'Top' : 'Bottom'}`;
 
   // ── AD SCREEN ────────────────────────────────────────────────
   if (screen === 'ad') {
@@ -293,7 +298,9 @@ export function Game({ awayTeam, homeTeam, onNewGame }: GameProps) {
           <div className="text-center">
             <div className="text-5xl mb-3">⚾</div>
             <h2 className="text-2xl font-black text-white">{title}</h2>
-            <p className="text-white/40 text-sm mt-1">Final · {INNINGS} innings</p>
+            <p className="text-white/40 text-sm mt-1">
+              Final · {innings} innings{state.extraInnings > 0 ? ` + ${state.extraInnings} extra` : ''}
+            </p>
           </div>
 
           <div className="flex gap-3">
@@ -324,6 +331,7 @@ export function Game({ awayTeam, homeTeam, onNewGame }: GameProps) {
             style={{ background: 'rgba(0,0,0,0.4)' }}>
             <p className="text-[10px] text-white/35 uppercase tracking-widest font-semibold mb-2">Box Score</p>
             <LineScore
+              innings={innings}
               lineScore={state.lineScore}
               scores={state.scores}
               currentInning={state.inning}
@@ -440,6 +448,7 @@ export function Game({ awayTeam, homeTeam, onNewGame }: GameProps) {
           style={{ background: 'rgba(0,0,0,0.38)' }}>
           <p className="text-[9px] text-white/35 uppercase tracking-widest font-bold mb-1.5">Linescore</p>
           <LineScore
+            innings={innings}
             lineScore={state.lineScore}
             scores={state.scores}
             currentInning={state.inning}
@@ -525,7 +534,7 @@ export function Game({ awayTeam, homeTeam, onNewGame }: GameProps) {
         </div>
 
         <p className="text-[9px] text-white/20 text-center pb-1">
-          {INNINGS}-inning game · pass the phone between pitcher and batter
+          {innings}-inning game · pass the phone between pitcher and batter
         </p>
       </div>
     </div>

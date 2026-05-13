@@ -1,6 +1,5 @@
-import { INNINGS } from '@/lib/gameLogic';
-
 interface LineScoreProps {
+  innings: number; // scheduled game length
   lineScore: [number[], number[]];
   scores: [number, number];
   currentInning: number;
@@ -10,9 +9,11 @@ interface LineScoreProps {
 }
 
 export function LineScore({
-  lineScore, scores, currentInning, currentHalf, awayTeam, homeTeam,
+  innings, lineScore, scores, currentInning, currentHalf, awayTeam, homeTeam,
 }: LineScoreProps) {
-  const innings = Array.from({ length: INNINGS }, (_, i) => i + 1);
+  // Show all scheduled innings + any extra innings already played/in progress
+  const totalCols = Math.max(innings, currentInning, lineScore[0].length, lineScore[1].length);
+  const colNums = Array.from({ length: totalCols }, (_, i) => i + 1);
 
   function cellValue(teamIdx: number, inningIdx: number): string {
     const teamArr = lineScore?.[teamIdx];
@@ -34,8 +35,14 @@ export function LineScore({
         <thead>
           <tr>
             <th className="text-left text-white/35 font-semibold py-0.5 pr-1" style={{ width: 52 }}></th>
-            {innings.map(n => (
-              <th key={n} className="text-white/35 font-semibold py-0.5" style={{ width: 24 }}>{n}</th>
+            {colNums.map(n => (
+              <th
+                key={n}
+                className={`font-semibold py-0.5 ${n > innings ? 'text-amber-400/60' : 'text-white/35'}`}
+                style={{ width: 24 }}
+              >
+                {n > innings ? 'E' : n}
+              </th>
             ))}
             <th className="text-white/60 font-bold py-0.5 pl-1 border-l border-white/15" style={{ width: 26 }}>R</th>
           </tr>
@@ -46,9 +53,10 @@ export function LineScore({
               <td className="text-left text-white/65 font-bold py-1 pr-1 truncate" style={{ maxWidth: 52 }}>
                 {team}
               </td>
-              {innings.map((_, iIdx) => {
+              {colNums.map((_, iIdx) => {
                 const active = isActive(tIdx, iIdx);
                 const val = cellValue(tIdx, iIdx);
+                const isExtra = iIdx + 1 > innings;
                 return (
                   <td
                     key={iIdx}
@@ -57,7 +65,7 @@ export function LineScore({
                       color: active
                         ? '#60a5fa'
                         : val !== ''
-                          ? 'rgba(255,255,255,0.8)'
+                          ? isExtra ? 'rgba(251,191,36,0.9)' : 'rgba(255,255,255,0.8)'
                           : 'rgba(255,255,255,0.18)',
                       background: active ? 'rgba(96,165,250,0.15)' : 'transparent',
                     }}
