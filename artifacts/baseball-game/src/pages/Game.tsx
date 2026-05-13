@@ -230,7 +230,7 @@ export function Game({ awayTeam, homeTeam, innings, isPaid, onNewGame }: GamePro
             const { newState } = nextHalf(ns, { innings, isPaid });
             setState(newState);
             setScreen('gameover');
-          }, 2500);
+          }, 4000);
         } else {
           setResult({ message: atBatResult.message, type: 'hit' });
           setState(ns);

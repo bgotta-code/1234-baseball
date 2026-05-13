@@ -12,7 +12,13 @@ export function LineScore({
   innings, lineScore, scores, currentInning, currentHalf, awayTeam, homeTeam,
 }: LineScoreProps) {
   // Show all scheduled innings + any extra innings already played/in progress
-  const totalCols = Math.max(innings, currentInning, lineScore[0].length, lineScore[1].length);
+  // Only expand beyond scheduled innings when extras are actually in progress or recorded
+  const totalCols = Math.max(
+    innings,
+    lineScore[0].length,
+    lineScore[1].length,
+    currentInning > innings ? currentInning : 0,
+  );
   const colNums = Array.from({ length: totalCols }, (_, i) => i + 1);
 
   function cellValue(teamIdx: number, inningIdx: number): string {
