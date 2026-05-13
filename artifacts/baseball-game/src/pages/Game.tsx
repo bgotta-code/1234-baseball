@@ -214,8 +214,27 @@ export function Game({ awayTeam, homeTeam, innings, isPaid, onNewGame }: GamePro
         ballTimersRef.current.push(setTimeout(() => setBallPos(null), 800));
         startRunnerAnimation(prevBases, dist, state.outs === 2);
         playHitSound(dist, state.half);
-        setResult({ message: atBatResult.message, type: 'hit' });
-        setState(atBatResult.newState);
+
+        // Walk-off: bottom of last inning (or extra), home team takes the lead
+        const ns = atBatResult.newState;
+        const isWalkoff =
+          state.half === 1 &&
+          state.inning >= innings &&
+          atBatResult.runs > 0 &&
+          ns.scores[1] > ns.scores[0];
+
+        if (isWalkoff) {
+          setResult({ message: `Walk-off ${atBatResult.message}`, type: 'hit' });
+          setState(ns);
+          setTimeout(() => {
+            const { newState } = nextHalf(ns, { innings, isPaid });
+            setState(newState);
+            setScreen('gameover');
+          }, 2500);
+        } else {
+          setResult({ message: atBatResult.message, type: 'hit' });
+          setState(ns);
+        }
       } else if (atBatResult.type === 'out') {
         playOutSound(state.half);
         showReveal(state.pitcherChoice!);
