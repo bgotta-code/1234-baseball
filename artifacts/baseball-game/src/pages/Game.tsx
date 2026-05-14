@@ -323,7 +323,7 @@ export function Game({ awayTeam, homeTeam, innings, isPaid, onNewGame }: GamePro
             <div className="text-5xl mb-3">⚾</div>
             <h2 className="text-2xl font-black text-white">{title}</h2>
             <p className="text-white/40 text-sm mt-1">
-              Final · {innings} innings{state.extraInnings > 0 ? ` + ${state.extraInnings} extra` : ''}
+              Final · {innings + state.extraInnings} innings
             </p>
           </div>
 
