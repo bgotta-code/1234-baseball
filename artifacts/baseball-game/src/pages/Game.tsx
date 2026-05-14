@@ -52,6 +52,8 @@ export function Game({ awayTeam, homeTeam, innings, isPaid, onNewGame }: GamePro
   const [animRunners, setAnimRunners] = useState<Array<{ id: string; pos: number; maxPos: number }> | null>(null);
   const [homeFlashes, setHomeFlashes] = useState<Array<{ id: string; delay: number }>>([]);
   const [ballPos, setBallPos] = useState<{ x: number; y: number } | null>(null);
+  const [confirmAbandon, setConfirmAbandon] = useState(false);
+  const abandonTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const adTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -558,9 +560,41 @@ export function Game({ awayTeam, homeTeam, innings, isPaid, onNewGame }: GamePro
           </button>
         </div>
 
-        <p className="text-[9px] text-white/20 text-center pb-1">
-          {innings}-inning game · pass the phone between pitcher and batter
-        </p>
+        <div className="flex items-center justify-between pb-1 px-1">
+          <p className="text-[9px] text-white/20">
+            {innings}-inning game · pass the phone between pitcher and batter
+          </p>
+          {confirmAbandon ? (
+            <div className="flex items-center gap-2 shrink-0 ml-2">
+              <button
+                className="text-[9px] text-white/35 underline"
+                onClick={() => {
+                  if (abandonTimerRef.current) clearTimeout(abandonTimerRef.current);
+                  setConfirmAbandon(false);
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="text-[9px] text-red-400/70 font-bold underline"
+                onClick={onNewGame}
+              >
+                Abandon?
+              </button>
+            </div>
+          ) : (
+            <button
+              className="text-[9px] text-white/20 underline shrink-0 ml-2"
+              onClick={() => {
+                setConfirmAbandon(true);
+                if (abandonTimerRef.current) clearTimeout(abandonTimerRef.current);
+                abandonTimerRef.current = setTimeout(() => setConfirmAbandon(false), 4000);
+              }}
+            >
+              Abandon
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );
