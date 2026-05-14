@@ -362,6 +362,7 @@ export function Game({ awayTeam, homeTeam, innings, isPaid, onNewGame }: GamePro
               currentHalf={state.half}
               awayTeam={awayTeam}
               homeTeam={homeTeam}
+              isGameOver
             />
           </div>
 

@@ -6,18 +6,19 @@ interface LineScoreProps {
   currentHalf: number;
   awayTeam: string;
   homeTeam: string;
+  isGameOver?: boolean;
 }
 
 export function LineScore({
-  innings, lineScore, scores, currentInning, currentHalf, awayTeam, homeTeam,
+  innings, lineScore, scores, currentInning, currentHalf, awayTeam, homeTeam, isGameOver,
 }: LineScoreProps) {
-  // Show all scheduled innings + any extra innings already played/in progress
-  // Only expand beyond scheduled innings when extras are actually in progress or recorded
+  // Show all scheduled innings + any extras in progress or already recorded.
+  // When the game is over, ignore currentInning (it has advanced past the last played inning).
   const totalCols = Math.max(
     innings,
     lineScore[0].length,
     lineScore[1].length,
-    currentInning > innings ? currentInning : 0,
+    !isGameOver && currentInning > innings ? currentInning : 0,
   );
   const colNums = Array.from({ length: totalCols }, (_, i) => i + 1);
 
