@@ -579,7 +579,7 @@ export function Game({ awayTeam, homeTeam, innings, isPaid, onNewGame }: GamePro
                 className="text-[9px] text-red-400/70 font-bold underline"
                 onClick={onNewGame}
               >
-                Abandon?
+                Start Over?
               </button>
             </div>
           ) : (
@@ -591,7 +591,7 @@ export function Game({ awayTeam, homeTeam, innings, isPaid, onNewGame }: GamePro
                 abandonTimerRef.current = setTimeout(() => setConfirmAbandon(false), 4000);
               }}
             >
-              Abandon
+              Start Over
             </button>
           )}
         </div>
