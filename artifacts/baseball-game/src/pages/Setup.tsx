@@ -48,7 +48,7 @@ export function Setup({ isPaid, onStart, onCreateOnline, onJoinOnline }: SetupPr
         <div className="text-center">
           <div className="text-6xl mb-3">⚾</div>
           <h1 className="text-3xl font-black text-white tracking-wide">1,2,3,4 Baseball</h1>
-          <p className="text-white/50 text-sm mt-1">Two-player · pass the phone</p>
+          <p className="text-white/50 text-sm mt-1">Two-player · online multiplayer</p>
         </div>
 
         {/* Team name inputs */}
@@ -152,11 +152,11 @@ export function Setup({ isPaid, onStart, onCreateOnline, onJoinOnline }: SetupPr
         >
           <p className="text-[11px] text-white/35 uppercase tracking-widest font-semibold mb-2">How to Play</p>
           <ul className="text-[13px] text-white/55 flex flex-col gap-1.5 list-none">
-            <li>⚾ Pitcher secretly picks a number 1–4</li>
-            <li>📱 Hand device to the batter</li>
-            <li>🏏 Batter guesses the same number</li>
+            <li>🎯 Pitcher selects a number 1–4 on their device</li>
+            <li>🏏 Batter guesses on a separate device — can't see pitcher's pick</li>
             <li>✅ Match = 1 Single · 2 Double · 3 Triple · 4 HR</li>
-            <li>❌ No match = Out · 3 outs = change sides</li>
+            <li>❌ No match = Out</li>
+            <li>🔄 3 outs = change sides</li>
           </ul>
         </div>
 
