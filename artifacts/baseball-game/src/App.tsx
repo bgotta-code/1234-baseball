@@ -1,33 +1,77 @@
 import { useState } from 'react';
 import { Setup } from '@/pages/Setup';
 import { Game } from '@/pages/Game';
+import { OnlineLobby } from '@/pages/OnlineLobby';
+import { OnlineGame } from '@/pages/OnlineGame';
 import { IS_PAID } from '@/lib/config';
+import { generateRoomCode, RoomSetup } from '@/lib/roomLogic';
 
-interface Teams {
-  away: string;
-  home: string;
-  innings: number;
-}
+type Screen =
+  | { type: 'setup' }
+  | { type: 'solo'; teams: { away: string; home: string; innings: number } }
+  | { type: 'online-lobby'; mode: 'host'; roomCode: string; setup: RoomSetup }
+  | { type: 'online-lobby'; mode: 'guest'; roomCode: string }
+  | { type: 'online-game'; roomCode: string; role: 'host' | 'guest'; setup: RoomSetup };
 
 function App() {
-  const [teams, setTeams] = useState<Teams | null>(null);
+  const [screen, setScreen] = useState<Screen>({ type: 'setup' });
 
-  if (!teams) {
+  if (screen.type === 'solo') {
     return (
-      <Setup
+      <Game
+        awayTeam={screen.teams.away}
+        homeTeam={screen.teams.home}
+        innings={screen.teams.innings}
         isPaid={IS_PAID}
-        onStart={(away, home, innings) => setTeams({ away, home, innings })}
+        onNewGame={() => setScreen({ type: 'setup' })}
+      />
+    );
+  }
+
+  if (screen.type === 'online-lobby') {
+    return (
+      <OnlineLobby
+        mode={screen.mode}
+        roomCode={screen.roomCode}
+        setup={screen.mode === 'host' ? (screen as { type: 'online-lobby'; mode: 'host'; roomCode: string; setup: RoomSetup }).setup : undefined}
+        onGameReady={(setup, roomCode, role) =>
+          setScreen({ type: 'online-game', roomCode, role, setup })
+        }
+        onLeave={() => setScreen({ type: 'setup' })}
+      />
+    );
+  }
+
+  if (screen.type === 'online-game') {
+    return (
+      <OnlineGame
+        roomCode={screen.roomCode}
+        role={screen.role}
+        setup={screen.setup}
+        isPaid={IS_PAID}
+        onLeave={() => setScreen({ type: 'setup' })}
       />
     );
   }
 
   return (
-    <Game
-      awayTeam={teams.away}
-      homeTeam={teams.home}
-      innings={teams.innings}
+    <Setup
       isPaid={IS_PAID}
-      onNewGame={() => setTeams(null)}
+      onStart={(away, home, innings) =>
+        setScreen({ type: 'solo', teams: { away, home, innings } })
+      }
+      onCreateOnline={(away, home, innings) => {
+        const code = generateRoomCode();
+        setScreen({
+          type: 'online-lobby',
+          mode: 'host',
+          roomCode: code,
+          setup: { awayTeam: away, homeTeam: home, innings },
+        });
+      }}
+      onJoinOnline={(code) =>
+        setScreen({ type: 'online-lobby', mode: 'guest', roomCode: code.toUpperCase() })
+      }
     />
   );
 }

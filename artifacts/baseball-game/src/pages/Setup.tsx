@@ -4,23 +4,37 @@ import { unlockAudio, playStartCheer } from '@/lib/audio';
 interface SetupProps {
   isPaid: boolean;
   onStart: (awayName: string, homeName: string, innings: number) => void;
+  onCreateOnline: (awayName: string, homeName: string, innings: number) => void;
+  onJoinOnline: (code: string) => void;
 }
 
 const INNING_OPTIONS = [3, 5, 7, 9];
 
-export function Setup({ isPaid, onStart }: SetupProps) {
+export function Setup({ isPaid, onStart, onCreateOnline, onJoinOnline }: SetupProps) {
   const [awayName, setAwayName] = useState('');
   const [homeName, setHomeName] = useState('');
   const [innings, setInnings] = useState(3);
+  const [onlinePanel, setOnlinePanel] = useState<'closed' | 'join'>('closed');
+  const [joinCode, setJoinCode] = useState('');
+
+  const away = awayName.trim() || 'Away';
+  const home = homeName.trim() || 'Home';
 
   const handleStart = () => {
     unlockAudio();
     playStartCheer();
-    onStart(
-      awayName.trim() || 'Away',
-      homeName.trim() || 'Home',
-      innings,
-    );
+    onStart(away, home, innings);
+  };
+
+  const handleCreateOnline = () => {
+    unlockAudio();
+    onCreateOnline(away, home, innings);
+  };
+
+  const handleJoin = () => {
+    if (joinCode.trim().length < 4) return;
+    unlockAudio();
+    onJoinOnline(joinCode.trim());
   };
 
   return (
@@ -146,6 +160,7 @@ export function Setup({ isPaid, onStart }: SetupProps) {
           </ul>
         </div>
 
+        {/* Solo button */}
         <button
           onClick={handleStart}
           className="w-full py-4 rounded-2xl font-black text-[18px] text-white tracking-wide transition-all active:scale-95 shadow-lg"
@@ -153,6 +168,73 @@ export function Setup({ isPaid, onStart }: SetupProps) {
         >
           Play Ball!
         </button>
+
+        {/* Online section */}
+        <div className="rounded-2xl border border-white/15 overflow-hidden"
+          style={{ background: 'rgba(0,0,0,0.35)' }}>
+          <div className="p-4 flex flex-col gap-3">
+            <p className="text-[11px] text-white/40 uppercase tracking-widest font-semibold text-center">
+              🌐 Play Online
+            </p>
+            <div className="flex gap-2">
+              <button
+                onClick={handleCreateOnline}
+                className="flex-1 py-3 rounded-xl font-bold text-[14px] text-white border border-blue-500/40 transition-all active:scale-95"
+                style={{ background: 'linear-gradient(135deg,rgba(37,99,235,0.4),rgba(29,78,216,0.4))' }}
+              >
+                Create Game
+              </button>
+              <button
+                onClick={() => setOnlinePanel(p => p === 'join' ? 'closed' : 'join')}
+                className={`flex-1 py-3 rounded-xl font-bold text-[14px] transition-all active:scale-95 border ${
+                  onlinePanel === 'join'
+                    ? 'border-amber-500/50 text-amber-300'
+                    : 'border-white/20 text-white/60'
+                }`}
+                style={{ background: onlinePanel === 'join' ? 'rgba(251,191,36,0.15)' : 'rgba(255,255,255,0.06)' }}
+              >
+                Join Game
+              </button>
+            </div>
+
+            {onlinePanel === 'join' && (
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  value={joinCode}
+                  onChange={e => setJoinCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                  placeholder="Enter room code"
+                  maxLength={6}
+                  className="flex-1 rounded-xl px-4 py-3 text-[16px] font-bold text-white placeholder-white/25 outline-none border border-white/20 focus:border-amber-400 transition-colors tracking-widest uppercase"
+                  style={{ background: 'rgba(255,255,255,0.08)' }}
+                  onKeyDown={e => { if (e.key === 'Enter') handleJoin(); }}
+                  autoFocus
+                />
+                <button
+                  onClick={handleJoin}
+                  disabled={joinCode.trim().length < 4}
+                  className={`px-5 py-3 rounded-xl font-bold text-[14px] transition-all border ${
+                    joinCode.trim().length >= 4
+                      ? 'border-transparent text-white active:scale-95'
+                      : 'border-white/10 text-white/25 cursor-not-allowed'
+                  }`}
+                  style={{
+                    background: joinCode.trim().length >= 4
+                      ? 'linear-gradient(135deg,#d97706,#b45309)'
+                      : 'rgba(255,255,255,0.04)',
+                  }}
+                >
+                  Join
+                </button>
+              </div>
+            )}
+
+            <p className="text-[10px] text-white/25 text-center">
+              Create a room and share the code · Player 1 is Away team
+            </p>
+          </div>
+        </div>
+
       </div>
     </div>
   );
