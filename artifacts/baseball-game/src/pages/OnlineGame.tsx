@@ -350,8 +350,8 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
             <ul className="text-[13px] text-white/70 flex flex-col gap-2.5 list-none mb-5">
               <li>🎯 Pitcher selects a number 1–4 on their device</li>
               <li>🏏 Batter guesses which number was chosen</li>
-              <li>✅ Match = 1 Single · 2 Double · 3 Triple · 4 HR</li>
-              <li>❌ No match = Out</li>
+              <li>✅ Correct guess = 1 Single · 2 Double · 3 Triple · 4 HR</li>
+              <li>❌ Incorrect guess = Out</li>
               <li>🔄 3 outs = change sides</li>
               <li className="text-white/45 text-[12px] pt-1 border-t border-white/10">
                 🆓 Free version = 3-inning game + 1 extra inning if needed
