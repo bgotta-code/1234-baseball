@@ -198,6 +198,30 @@ export async function writeResolution(
   });
 }
 
+// ── Push subscription storage ─────────────────────────────────────────────────
+
+export interface SerializedPushSubscription {
+  endpoint: string;
+  expirationTime?: number | null;
+  keys: { p256dh: string; auth: string };
+}
+
+export async function writePushSubscription(
+  code: string,
+  role: 'host' | 'guest',
+  subscription: PushSubscription,
+): Promise<void> {
+  await set(ref(getDb(), `rooms/${code}/subscriptions/${role}`), subscription.toJSON());
+}
+
+export async function readPushSubscription(
+  code: string,
+  role: 'host' | 'guest',
+): Promise<SerializedPushSubscription | null> {
+  const snap = await get(ref(getDb(), `rooms/${code}/subscriptions/${role}`));
+  return snap.exists() ? (snap.val() as SerializedPushSubscription) : null;
+}
+
 export function setupPresence(code: string, role: 'host' | 'guest'): () => void {
   const presRef = ref(getDb(), `rooms/${code}/players/${role}`);
   set(presRef, true);

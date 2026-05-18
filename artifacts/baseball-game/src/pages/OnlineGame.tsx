@@ -1,8 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import {
   subscribeRoom, setupPresence, writePitcherChoice, writeBatterChoice,
-  writeResolution, ParsedRoomDoc, RoomSetup,
+  writeResolution, writePushSubscription, readPushSubscription,
+  ParsedRoomDoc, RoomSetup,
 } from '@/lib/roomLogic';
+import { subscribeToPush, isPushSupported } from '@/lib/pushNotifications';
 import { resolveAtBat, nextHalf, GameState } from '@/lib/gameLogic';
 import { playHitSound, playOutSound, isMuted, toggleMute, unlockAudio } from '@/lib/audio';
 import { LineScore } from '@/components/LineScore';
@@ -69,6 +71,14 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
     const cleanupPres = setupPresence(roomCode, role);
     const unsub = subscribeRoom(roomCode, setRoomData);
     return () => { unsub(); cleanupPres(); };
+  }, [roomCode, role]);
+
+  // ── Push notification subscription ─────────────────────────────────────────
+  useEffect(() => {
+    if (!isPushSupported()) return;
+    subscribeToPush().then((sub) => {
+      if (sub) writePushSubscription(roomCode, role, sub).catch(() => {});
+    });
   }, [roomCode, role]);
 
   // ── Reset myChoice when a new at-bat starts ────────────────────────────────
@@ -175,9 +185,25 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
   const handleSubmit = useCallback(async () => {
     if (!myChoice || !roomData?.gameState) return;
     const gs = roomData.gameState;
-    const isPitcher = (role === 'host' && gs.half === 1) || (role === 'guest' && gs.half === 0);
-    if (isPitcher) await writePitcherChoice(roomCode, myChoice);
-    else await writeBatterChoice(roomCode, myChoice);
+    const isPitcherNow = (role === 'host' && gs.half === 1) || (role === 'guest' && gs.half === 0);
+    if (isPitcherNow) {
+      await writePitcherChoice(roomCode, myChoice);
+      const batterRole = role === 'host' ? 'guest' : 'host';
+      readPushSubscription(roomCode, batterRole).then((sub) => {
+        if (!sub) return;
+        fetch('/api/push/send', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            subscription: sub,
+            title: '⚾ Pitcher has chosen!',
+            body: 'Your turn — open the game to pick your swing.',
+          }),
+        }).catch(() => {});
+      }).catch(() => {});
+    } else {
+      await writeBatterChoice(roomCode, myChoice);
+    }
   }, [myChoice, roomData, role, roomCode]);
 
   const bg = 'linear-gradient(170deg,#0c2c0c 0%,#1e4a1e 60%,#2a5a2a 100%)';
