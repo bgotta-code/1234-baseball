@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import {
-  createRoom, joinRoom, startGame, subscribeRoom,
+  createRoom, joinRoom, cancelRoom, startGame, subscribeRoom,
   setupPresence, ParsedRoomDoc, RoomSetup,
 } from '@/lib/roomLogic';
 import { unlockAudio } from '@/lib/audio';
@@ -34,7 +34,11 @@ export function OnlineLobby({ mode, roomCode, setup, guestTeamName, onGameReady,
       } else {
         const result = await joinRoom(roomCode, guestTeamName);
         if (result === 'not-found') {
-          setStatus('error'); setErrorMsg('Room not found. Check the code and try again.');
+          setStatus('error'); setErrorMsg('No game found with that passcode. Double-check with your opponent.');
+          return;
+        }
+        if (result === 'cancelled') {
+          setStatus('error'); setErrorMsg('This game was cancelled. Ask your opponent to create a new one.');
           return;
         }
         if (result === 'full') {
@@ -148,7 +152,7 @@ export function OnlineLobby({ mode, roomCode, setup, guestTeamName, onGameReady,
           )}
 
           <button
-            onClick={onLeave}
+            onClick={() => { cancelRoom(roomCode).catch(() => {}); onLeave(); }}
             className="text-white/30 text-sm underline text-center"
           >
             Cancel

@@ -31,7 +31,7 @@ export interface LastAtBat {
   batterNum: number;
 }
 
-export type RoomPhase = 'lobby' | 'playing' | 'gameover';
+export type RoomPhase = 'lobby' | 'playing' | 'gameover' | 'cancelled';
 
 export interface ParsedRoomDoc {
   setup: RoomSetup;
@@ -140,11 +140,16 @@ export async function createRoom(code: string, setup: RoomSetup): Promise<void> 
   });
 }
 
-export async function joinRoom(code: string, guestTeamName?: string): Promise<'ok' | 'not-found' | 'full'> {
+export async function cancelRoom(code: string): Promise<void> {
+  await update(roomRef(code), { phase: 'cancelled' });
+}
+
+export async function joinRoom(code: string, guestTeamName?: string): Promise<'ok' | 'not-found' | 'full' | 'cancelled'> {
   const snap = await get(roomRef(code));
   if (!snap.exists()) return 'not-found';
   const data = snap.val() as Record<string, unknown>;
   const players = data.players as Record<string, boolean>;
+  if (data.phase === 'cancelled') return 'cancelled';
   if (players.guest) return 'full';
   if (data.phase !== 'lobby') return 'full';
   await update(ref(getDb(), `rooms/${code}/players`), { guest: true });
