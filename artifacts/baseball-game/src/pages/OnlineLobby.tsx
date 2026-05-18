@@ -105,7 +105,7 @@ export function OnlineLobby({ mode, roomCode, setup, guestTeamName, onGameReady,
             className="rounded-2xl border border-white/20 p-6 text-center"
             style={{ background: 'rgba(0,0,0,0.4)' }}
           >
-            <p className="text-[11px] text-white/40 uppercase tracking-widest mb-2">Room Code</p>
+            <p className="text-[11px] text-white/40 uppercase tracking-widest mb-2">Stadium Passcode</p>
             <p className="text-5xl font-black text-white tracking-[0.15em] mb-3">{roomCode}</p>
             <p className="text-[11px] text-white/30">
               {setup?.awayTeam ?? 'Away'} vs {setup?.homeTeam ?? 'Home'} · {setup?.innings} innings
@@ -133,7 +133,7 @@ export function OnlineLobby({ mode, roomCode, setup, guestTeamName, onGameReady,
           {!roomData?.players.guest && (
             <button
               onClick={() => {
-                const text = `Join my 1,2,3,4 Baseball game!\nRoom code: ${roomCode}\nOpen and tap Join Game: ${window.location.origin}`;
+                const text = `Join my 1,2,3,4 Baseball game!\nStadium passcode: ${roomCode}\nOpen and tap Join Game: ${window.location.origin}`;
                 if (navigator.share) {
                   navigator.share({ title: '1,2,3,4 Baseball', text, url: window.location.origin }).catch(() => {});
                 } else {
