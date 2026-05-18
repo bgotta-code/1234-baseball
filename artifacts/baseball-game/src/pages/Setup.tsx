@@ -56,9 +56,9 @@ export function Setup({ isPaid, onStart, onCreateOnline, onJoinOnline }: SetupPr
             <div className="rounded-xl p-3 flex flex-col gap-1.5" style={{ background: 'rgba(255,255,255,0.04)' }}>
               <p className="text-[11px] text-white/35 uppercase tracking-widest font-semibold mb-0.5">How to Start</p>
               <ol className="text-[12px] text-white/55 flex flex-col gap-1.5 list-none">
-                <li><span className="text-white/30 font-bold mr-1.5">1.</span>Tap <span className="text-green-400/90 font-semibold">Play Ball</span> and enter your team name</li>
-                <li><span className="text-white/30 font-bold mr-1.5">2.</span>Choose Home or Away and game length</li>
-                <li><span className="text-white/30 font-bold mr-1.5">3.</span>Text or email the link + stadium passcode to your opponent</li>
+                <li><span className="text-white/30 font-bold mr-1.5">1.</span>Tap <span className="text-green-400/90 font-semibold">Play Ball</span></li>
+                <li><span className="text-white/30 font-bold mr-1.5">2.</span>Enter team name, select Home or Away and game length</li>
+                <li><span className="text-white/30 font-bold mr-1.5">3.</span>Tap <span className="text-green-400/90 font-semibold">Enter Stadium</span> to text link + stadium passcode to your opponent</li>
                 <li><span className="text-white/30 font-bold mr-1.5">4.</span>They open the link, enter their name and your code, and tap <span className="text-amber-400/80 font-semibold">Join Game</span></li>
                 <li><span className="text-white/30 font-bold mr-1.5">5.</span>Game starts automatically — no download required</li>
               </ol>
