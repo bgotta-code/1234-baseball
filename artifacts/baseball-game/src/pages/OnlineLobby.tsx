@@ -123,10 +123,29 @@ export function OnlineLobby({ mode, roomCode, setup, guestTeamName, onGameReady,
             ) : (
               <>
                 <p className="text-white/55 text-sm animate-pulse">Waiting for opponent…</p>
-                <p className="text-white/25 text-xs mt-1">You are the Away team</p>
+                <p className="text-white/25 text-xs mt-2">
+                  You are the {setup?.hostRole === 'home' ? 'Home' : 'Away'} team
+                </p>
               </>
             )}
           </div>
+
+          {!roomData?.players.guest && (
+            <button
+              onClick={() => {
+                const text = `Join my 1,2,3,4 Baseball game!\nRoom code: ${roomCode}\nOpen and tap Join Game: ${window.location.origin}`;
+                if (navigator.share) {
+                  navigator.share({ title: '1,2,3,4 Baseball', text, url: window.location.origin }).catch(() => {});
+                } else {
+                  navigator.clipboard.writeText(text).catch(() => {});
+                }
+              }}
+              className="w-full py-3.5 rounded-2xl font-bold text-[15px] text-white border border-white/20 transition-all active:scale-95"
+              style={{ background: 'rgba(255,255,255,0.08)' }}
+            >
+              📱 Text / Share Invite
+            </button>
+          )}
 
           <button
             onClick={onLeave}

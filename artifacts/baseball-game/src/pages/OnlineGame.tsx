@@ -57,6 +57,7 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
   const [switching, setSwitching] = useState(false);
   const [muted, setMuted] = useState(isMuted);
   const [confirmLeave, setConfirmLeave] = useState(false);
+  const [showRules, setShowRules] = useState(true);
 
   const resolving = useRef(false);
   const lastResolvedSeq = useRef(-1);
@@ -185,7 +186,10 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
   const handleSubmit = useCallback(async () => {
     if (!myChoice || !roomData?.gameState) return;
     const gs = roomData.gameState;
-    const isPitcherNow = (role === 'host' && gs.half === 1) || (role === 'guest' && gs.half === 0);
+    const hr = setup.hostRole ?? 'away';
+    const isPitcherNow = hr === 'home'
+      ? (role === 'host' && gs.half === 0) || (role === 'guest' && gs.half === 1)
+      : (role === 'host' && gs.half === 1) || (role === 'guest' && gs.half === 0);
     if (isPitcherNow) {
       await writePitcherChoice(roomCode, myChoice);
       const batterRole = role === 'host' ? 'guest' : 'host';
@@ -238,8 +242,14 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
   }
 
   const { gameState } = roomData;
-  const isPitcher = (role === 'host' && gameState.half === 1) || (role === 'guest' && gameState.half === 0);
-  const myTeamName = role === 'host' ? setup.awayTeam : setup.homeTeam;
+  const hostRole = setup.hostRole ?? 'away';
+  // Away team pitches in the bottom (half=1), home team pitches in the top (half=0)
+  const isPitcher = hostRole === 'home'
+    ? (role === 'host' && gameState.half === 0) || (role === 'guest' && gameState.half === 1)
+    : (role === 'host' && gameState.half === 1) || (role === 'guest' && gameState.half === 0);
+  const myTeamName = role === 'host'
+    ? (hostRole === 'home' ? setup.homeTeam : setup.awayTeam)
+    : (hostRole === 'home' ? setup.awayTeam : setup.homeTeam);
   const isExtraInning = gameState.inning > setup.innings;
   const inningLabel = isExtraInning
     ? `Extra Inning — ${gameState.half === 0 ? 'Top' : 'Bottom'}`
@@ -324,6 +334,43 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-6"
       style={{ background: bg }}>
+
+      {/* ── Rules overlay ─────────────────────────────────────────────────── */}
+      {showRules && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-5" style={{ background: 'rgba(0,0,0,0.88)' }}>
+          <div className="w-full max-w-sm rounded-2xl border border-white/20 p-6 relative" style={{ background: 'rgba(8,24,8,0.98)' }}>
+            <button
+              onClick={() => setShowRules(false)}
+              className="absolute top-4 right-4 text-white/40 hover:text-white/80 text-2xl font-black leading-none transition-colors"
+              aria-label="Close"
+            >
+              ×
+            </button>
+            <p className="text-[11px] text-white/35 uppercase tracking-widest font-semibold mb-4">How to Play</p>
+            <ul className="text-[13px] text-white/70 flex flex-col gap-2.5 list-none mb-5">
+              <li>🎯 Pitcher selects a number 1–4 on their device</li>
+              <li>🏏 Batter guesses which number was chosen</li>
+              <li>✅ Match = 1 Single · 2 Double · 3 Triple · 4 HR</li>
+              <li>❌ No match = Out</li>
+              <li>🔄 3 outs = change sides</li>
+              <li className="text-white/45 text-[12px] pt-1 border-t border-white/10">
+                🆓 Free version = 3-inning game + 1 extra inning if needed
+              </li>
+              <li className="text-white/45 text-[12px]">
+                ⭐ Upgrade for 5, 7 &amp; 9-inning games, unlimited extra innings + shorter ads
+              </li>
+            </ul>
+            <button
+              onClick={() => setShowRules(false)}
+              className="w-full py-3.5 rounded-xl font-black text-[16px] text-white transition-all active:scale-95"
+              style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', boxShadow: '0 4px 16px rgba(22,163,74,0.3)' }}
+            >
+              Got it — Play Ball!
+            </button>
+          </div>
+        </div>
+      )}
+
       <div className="w-full max-w-sm flex flex-col gap-3">
 
         {/* Header */}

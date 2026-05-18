@@ -10,6 +10,7 @@ export interface RoomSetup {
   awayTeam: string;
   homeTeam: string;
   innings: number;
+  hostRole?: 'home' | 'away'; // which team the host represents; defaults to 'away'
 }
 
 export interface AtBat {
@@ -148,7 +149,11 @@ export async function joinRoom(code: string, guestTeamName?: string): Promise<'o
   if (data.phase !== 'lobby') return 'full';
   await update(ref(getDb(), `rooms/${code}/players`), { guest: true });
   if (guestTeamName) {
-    await update(ref(getDb(), `rooms/${code}/setup`), { homeTeam: guestTeamName });
+    const setup = (data.setup ?? {}) as RoomSetup;
+    const hostRole = setup.hostRole ?? 'away';
+    // guest fills the opposite slot from the host
+    const field = hostRole === 'away' ? 'homeTeam' : 'awayTeam';
+    await update(ref(getDb(), `rooms/${code}/setup`), { [field]: guestTeamName });
   }
   return 'ok';
 }

@@ -61,14 +61,12 @@ function App() {
       onStart={(away, home, innings) =>
         setScreen({ type: 'solo', teams: { away, home, innings } })
       }
-      onCreateOnline={(away, home, innings) => {
+      onCreateOnline={(hostName, innings, hostRole) => {
         const code = generateRoomCode();
-        setScreen({
-          type: 'online-lobby',
-          mode: 'host',
-          roomCode: code,
-          setup: { awayTeam: away, homeTeam: home, innings },
-        });
+        const setup = hostRole === 'home'
+          ? { awayTeam: 'Away', homeTeam: hostName, innings, hostRole }
+          : { awayTeam: hostName, homeTeam: 'Home', innings, hostRole };
+        setScreen({ type: 'online-lobby', mode: 'host', roomCode: code, setup });
       }}
       onJoinOnline={(code, teamName) =>
         setScreen({ type: 'online-lobby', mode: 'guest', roomCode: code.toUpperCase(), guestTeamName: teamName })
