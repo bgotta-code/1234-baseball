@@ -139,7 +139,7 @@ export async function createRoom(code: string, setup: RoomSetup): Promise<void> 
   });
 }
 
-export async function joinRoom(code: string): Promise<'ok' | 'not-found' | 'full'> {
+export async function joinRoom(code: string, guestTeamName?: string): Promise<'ok' | 'not-found' | 'full'> {
   const snap = await get(roomRef(code));
   if (!snap.exists()) return 'not-found';
   const data = snap.val() as Record<string, unknown>;
@@ -147,6 +147,9 @@ export async function joinRoom(code: string): Promise<'ok' | 'not-found' | 'full
   if (players.guest) return 'full';
   if (data.phase !== 'lobby') return 'full';
   await update(ref(getDb(), `rooms/${code}/players`), { guest: true });
+  if (guestTeamName) {
+    await update(ref(getDb(), `rooms/${code}/setup`), { homeTeam: guestTeamName });
+  }
   return 'ok';
 }
 

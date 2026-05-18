@@ -10,7 +10,7 @@ type Screen =
   | { type: 'setup' }
   | { type: 'solo'; teams: { away: string; home: string; innings: number } }
   | { type: 'online-lobby'; mode: 'host'; roomCode: string; setup: RoomSetup }
-  | { type: 'online-lobby'; mode: 'guest'; roomCode: string }
+  | { type: 'online-lobby'; mode: 'guest'; roomCode: string; guestTeamName: string }
   | { type: 'online-game'; roomCode: string; role: 'host' | 'guest'; setup: RoomSetup };
 
 function App() {
@@ -34,6 +34,7 @@ function App() {
         mode={screen.mode}
         roomCode={screen.roomCode}
         setup={screen.mode === 'host' ? (screen as { type: 'online-lobby'; mode: 'host'; roomCode: string; setup: RoomSetup }).setup : undefined}
+        guestTeamName={screen.mode === 'guest' ? (screen as { type: 'online-lobby'; mode: 'guest'; roomCode: string; guestTeamName: string }).guestTeamName : undefined}
         onGameReady={(setup, roomCode, role) =>
           setScreen({ type: 'online-game', roomCode, role, setup })
         }
@@ -69,8 +70,8 @@ function App() {
           setup: { awayTeam: away, homeTeam: home, innings },
         });
       }}
-      onJoinOnline={(code) =>
-        setScreen({ type: 'online-lobby', mode: 'guest', roomCode: code.toUpperCase() })
+      onJoinOnline={(code, teamName) =>
+        setScreen({ type: 'online-lobby', mode: 'guest', roomCode: code.toUpperCase(), guestTeamName: teamName })
       }
     />
   );

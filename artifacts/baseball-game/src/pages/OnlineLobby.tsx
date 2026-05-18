@@ -9,11 +9,12 @@ interface OnlineLobbyProps {
   mode: 'host' | 'guest';
   roomCode: string;
   setup?: RoomSetup;
+  guestTeamName?: string;
   onGameReady: (setup: RoomSetup, roomCode: string, role: 'host' | 'guest') => void;
   onLeave: () => void;
 }
 
-export function OnlineLobby({ mode, roomCode, setup, onGameReady, onLeave }: OnlineLobbyProps) {
+export function OnlineLobby({ mode, roomCode, setup, guestTeamName, onGameReady, onLeave }: OnlineLobbyProps) {
   const [status, setStatus] = useState<'connecting' | 'waiting' | 'error'>('connecting');
   const [errorMsg, setErrorMsg] = useState('');
   const [roomData, setRoomData] = useState<ParsedRoomDoc | null>(null);
@@ -31,7 +32,7 @@ export function OnlineLobby({ mode, roomCode, setup, onGameReady, onLeave }: Onl
         setStatus('waiting');
         return subscribeRoom(roomCode, setRoomData);
       } else {
-        const result = await joinRoom(roomCode);
+        const result = await joinRoom(roomCode, guestTeamName);
         if (result === 'not-found') {
           setStatus('error'); setErrorMsg('Room not found. Check the code and try again.');
           return;
