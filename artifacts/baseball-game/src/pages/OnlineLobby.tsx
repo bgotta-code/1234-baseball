@@ -38,7 +38,7 @@ export function OnlineLobby({ mode, roomCode, setup, guestTeamName, onGameReady,
           return;
         }
         if (result === 'cancelled') {
-          setStatus('error'); setErrorMsg('This game was cancelled. Ask your opponent to create a new one.');
+          setStatus('error'); setErrorMsg('This game was rained out. Ask your opponent to create a new one.');
           return;
         }
         if (result === 'full') {
@@ -155,7 +155,7 @@ export function OnlineLobby({ mode, roomCode, setup, guestTeamName, onGameReady,
             onClick={() => { cancelRoom(roomCode).catch(() => {}); onLeave(); }}
             className="text-white/30 text-sm underline text-center"
           >
-            Cancel
+            Start over
           </button>
         </div>
       </div>
@@ -167,7 +167,7 @@ export function OnlineLobby({ mode, roomCode, setup, guestTeamName, onGameReady,
       <div className="w-full max-w-sm flex flex-col gap-5 text-center">
         <div className="text-5xl mb-2">⚾</div>
         <h2 className="text-2xl font-black text-white">Joining…</h2>
-        <p className="text-white/50 text-sm animate-pulse">Connecting to room {roomCode}</p>
+        <p className="text-white/50 text-sm animate-pulse">Connecting to game {roomCode}</p>
         <div
           className="rounded-2xl border border-white/10 p-4"
           style={{ background: 'rgba(0,0,0,0.4)' }}
@@ -177,9 +177,8 @@ export function OnlineLobby({ mode, roomCode, setup, guestTeamName, onGameReady,
           ) : (
             <p className="text-white/35 text-sm animate-pulse">Connecting…</p>
           )}
-          <p className="text-white/25 text-xs mt-1">You are the Home team</p>
         </div>
-        <button onClick={onLeave} className="text-white/30 text-sm underline">Cancel</button>
+        <button onClick={onLeave} className="text-white/30 text-sm underline">Start over</button>
       </div>
     </div>
   );
