@@ -54,6 +54,101 @@ export function Setup({ isPaid, onStart, onCreateOnline, onJoinOnline }: SetupPr
           <p className="text-white/50 text-sm mt-1">Two-player · online multiplayer</p>
         </div>
 
+        {/* Online section */}
+        <div className="rounded-2xl border border-white/15 overflow-hidden"
+          style={{ background: 'rgba(0,0,0,0.35)' }}>
+          <div className="p-4 flex flex-col gap-3">
+            <p className="text-[11px] text-white/40 uppercase tracking-widest font-semibold text-center">
+              🌐 Play Online
+            </p>
+
+            {/* Online instructions */}
+            <div
+              className="rounded-xl p-3 flex flex-col gap-1.5"
+              style={{ background: 'rgba(255,255,255,0.04)' }}
+            >
+              <p className="text-[11px] text-white/35 uppercase tracking-widest font-semibold mb-0.5">How to Start</p>
+              <ol className="text-[12px] text-white/50 flex flex-col gap-1 list-none">
+                <li><span className="text-white/30 font-bold mr-1">1.</span>Enter your team name</li>
+                <li><span className="text-white/30 font-bold mr-1">2.</span>Tap <span className="text-blue-400/80">Create Game</span> to get a room code</li>
+                <li><span className="text-white/30 font-bold mr-1">3.</span>Text or email the code + this link to your opponent:<br />
+                  <span className="text-white/40 break-all">{appUrl}</span>
+                </li>
+                <li><span className="text-white/30 font-bold mr-1">4.</span>They open the link, enter your code, and tap <span className="text-amber-400/80">Join Game</span></li>
+                <li><span className="text-white/30 font-bold mr-1">5.</span>Game starts automatically — no download required</li>
+              </ol>
+            </div>
+
+            <div className="flex gap-2">
+              <button
+                onClick={handleCreateOnline}
+                className="flex-1 py-3 rounded-xl font-bold text-[14px] text-white border border-blue-500/40 transition-all active:scale-95"
+                style={{ background: 'linear-gradient(135deg,rgba(37,99,235,0.4),rgba(29,78,216,0.4))' }}
+              >
+                Create Game
+              </button>
+              <button
+                onClick={() => setOnlinePanel(p => p === 'join' ? 'closed' : 'join')}
+                className={`flex-1 py-3 rounded-xl font-bold text-[14px] transition-all active:scale-95 border ${
+                  onlinePanel === 'join'
+                    ? 'border-amber-500/50 text-amber-300'
+                    : 'border-white/20 text-white/60'
+                }`}
+                style={{ background: onlinePanel === 'join' ? 'rgba(251,191,36,0.15)' : 'rgba(255,255,255,0.06)' }}
+              >
+                Join Game
+              </button>
+            </div>
+
+            {onlinePanel === 'join' && (
+              <div className="flex flex-col gap-2">
+                <input
+                  type="text"
+                  value={joinTeamName}
+                  onChange={e => setJoinTeamName(e.target.value)}
+                  placeholder="Your team name"
+                  maxLength={16}
+                  className="w-full rounded-xl px-4 py-3 text-[16px] font-semibold text-white placeholder-white/25 outline-none border border-white/20 focus:border-green-400 transition-colors"
+                  style={{ background: 'rgba(255,255,255,0.08)' }}
+                  autoFocus
+                />
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    value={joinCode}
+                    onChange={e => setJoinCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                    placeholder="Room code"
+                    maxLength={6}
+                    className="flex-1 rounded-xl px-4 py-3 text-[16px] font-bold text-white placeholder-white/25 outline-none border border-white/20 focus:border-amber-400 transition-colors tracking-widest uppercase"
+                    style={{ background: 'rgba(255,255,255,0.08)' }}
+                    onKeyDown={e => { if (e.key === 'Enter') handleJoin(); }}
+                  />
+                  <button
+                    onClick={handleJoin}
+                    disabled={joinCode.trim().length < 4}
+                    className={`px-5 py-3 rounded-xl font-bold text-[14px] transition-all border ${
+                      joinCode.trim().length >= 4
+                        ? 'border-transparent text-white active:scale-95'
+                        : 'border-white/10 text-white/25 cursor-not-allowed'
+                    }`}
+                    style={{
+                      background: joinCode.trim().length >= 4
+                        ? 'linear-gradient(135deg,#d97706,#b45309)'
+                        : 'rgba(255,255,255,0.04)',
+                    }}
+                  >
+                    Join
+                  </button>
+                </div>
+              </div>
+            )}
+
+            <p className="text-[10px] text-white/25 text-center">
+              Host = Away team · Opponent picks their own team name when joining
+            </p>
+          </div>
+        </div>
+
         {/* Team name inputs */}
         <div
           className="rounded-2xl border border-white/15 p-5 flex flex-col gap-4"
@@ -171,101 +266,6 @@ export function Setup({ isPaid, onStart, onCreateOnline, onJoinOnline }: SetupPr
         >
           Play Ball!
         </button>
-
-        {/* Online section */}
-        <div className="rounded-2xl border border-white/15 overflow-hidden"
-          style={{ background: 'rgba(0,0,0,0.35)' }}>
-          <div className="p-4 flex flex-col gap-3">
-            <p className="text-[11px] text-white/40 uppercase tracking-widest font-semibold text-center">
-              🌐 Play Online
-            </p>
-
-            {/* Online instructions */}
-            <div
-              className="rounded-xl p-3 flex flex-col gap-1.5"
-              style={{ background: 'rgba(255,255,255,0.04)' }}
-            >
-              <p className="text-[11px] text-white/35 uppercase tracking-widest font-semibold mb-0.5">How to Start</p>
-              <ol className="text-[12px] text-white/50 flex flex-col gap-1 list-none">
-                <li><span className="text-white/30 font-bold mr-1">1.</span>Enter your team name above</li>
-                <li><span className="text-white/30 font-bold mr-1">2.</span>Tap <span className="text-blue-400/80">Create Game</span> to get a room code</li>
-                <li><span className="text-white/30 font-bold mr-1">3.</span>Text or email the code + this link to your opponent:<br />
-                  <span className="text-white/40 break-all">{appUrl}</span>
-                </li>
-                <li><span className="text-white/30 font-bold mr-1">4.</span>They open the link, enter your code, and tap <span className="text-amber-400/80">Join Game</span></li>
-                <li><span className="text-white/30 font-bold mr-1">5.</span>Game starts automatically — no download required</li>
-              </ol>
-            </div>
-
-            <div className="flex gap-2">
-              <button
-                onClick={handleCreateOnline}
-                className="flex-1 py-3 rounded-xl font-bold text-[14px] text-white border border-blue-500/40 transition-all active:scale-95"
-                style={{ background: 'linear-gradient(135deg,rgba(37,99,235,0.4),rgba(29,78,216,0.4))' }}
-              >
-                Create Game
-              </button>
-              <button
-                onClick={() => setOnlinePanel(p => p === 'join' ? 'closed' : 'join')}
-                className={`flex-1 py-3 rounded-xl font-bold text-[14px] transition-all active:scale-95 border ${
-                  onlinePanel === 'join'
-                    ? 'border-amber-500/50 text-amber-300'
-                    : 'border-white/20 text-white/60'
-                }`}
-                style={{ background: onlinePanel === 'join' ? 'rgba(251,191,36,0.15)' : 'rgba(255,255,255,0.06)' }}
-              >
-                Join Game
-              </button>
-            </div>
-
-            {onlinePanel === 'join' && (
-              <div className="flex flex-col gap-2">
-                <input
-                  type="text"
-                  value={joinTeamName}
-                  onChange={e => setJoinTeamName(e.target.value)}
-                  placeholder="Your team name"
-                  maxLength={16}
-                  className="w-full rounded-xl px-4 py-3 text-[16px] font-semibold text-white placeholder-white/25 outline-none border border-white/20 focus:border-green-400 transition-colors"
-                  style={{ background: 'rgba(255,255,255,0.08)' }}
-                  autoFocus
-                />
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={joinCode}
-                    onChange={e => setJoinCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
-                    placeholder="Room code"
-                    maxLength={6}
-                    className="flex-1 rounded-xl px-4 py-3 text-[16px] font-bold text-white placeholder-white/25 outline-none border border-white/20 focus:border-amber-400 transition-colors tracking-widest uppercase"
-                    style={{ background: 'rgba(255,255,255,0.08)' }}
-                    onKeyDown={e => { if (e.key === 'Enter') handleJoin(); }}
-                  />
-                  <button
-                    onClick={handleJoin}
-                    disabled={joinCode.trim().length < 4}
-                    className={`px-5 py-3 rounded-xl font-bold text-[14px] transition-all border ${
-                      joinCode.trim().length >= 4
-                        ? 'border-transparent text-white active:scale-95'
-                        : 'border-white/10 text-white/25 cursor-not-allowed'
-                    }`}
-                    style={{
-                      background: joinCode.trim().length >= 4
-                        ? 'linear-gradient(135deg,#d97706,#b45309)'
-                        : 'rgba(255,255,255,0.04)',
-                    }}
-                  >
-                    Join
-                  </button>
-                </div>
-              </div>
-            )}
-
-            <p className="text-[10px] text-white/25 text-center">
-              Host = Away team · Opponent picks their own team name when joining
-            </p>
-          </div>
-        </div>
 
       </div>
     </div>
