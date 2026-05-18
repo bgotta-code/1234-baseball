@@ -65,35 +65,22 @@ export function Setup({ isPaid, onStart, onCreateOnline, onJoinOnline }: SetupPr
             </div>
 
             {/* Primary buttons */}
-            <div className="flex gap-2">
+            {panel === 'closed' && <div className="flex gap-2">
               <button
-                onClick={() => setPanel(p => p === 'create' ? 'closed' : 'create')}
-                className={`flex-1 py-3.5 rounded-xl font-black text-[15px] transition-all active:scale-95 border ${
-                  panel === 'create'
-                    ? 'border-green-500/60 text-white'
-                    : 'border-transparent text-white'
-                }`}
-                style={{
-                  background: panel === 'create'
-                    ? 'linear-gradient(135deg,rgba(22,163,74,0.5),rgba(21,128,61,0.5))'
-                    : 'linear-gradient(135deg,#16a34a,#15803d)',
-                  boxShadow: panel === 'create' ? 'none' : '0 4px 20px rgba(22,163,74,0.35)',
-                }}
+                onClick={() => setPanel('create')}
+                className="flex-1 py-3.5 rounded-xl font-black text-[15px] transition-all active:scale-95 border border-transparent text-white"
+                style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', boxShadow: '0 4px 20px rgba(22,163,74,0.35)' }}
               >
                 Play Ball
               </button>
               <button
-                onClick={() => setPanel(p => p === 'join' ? 'closed' : 'join')}
-                className={`flex-1 py-3.5 rounded-xl font-bold text-[14px] transition-all active:scale-95 border ${
-                  panel === 'join'
-                    ? 'border-amber-500/50 text-amber-300'
-                    : 'border-white/20 text-white/60'
-                }`}
-                style={{ background: panel === 'join' ? 'rgba(251,191,36,0.15)' : 'rgba(255,255,255,0.06)' }}
+                onClick={() => setPanel('join')}
+                className="flex-1 py-3.5 rounded-xl font-bold text-[14px] transition-all active:scale-95 border border-white/20 text-white/60"
+                style={{ background: 'rgba(255,255,255,0.06)' }}
               >
                 Join Game
               </button>
-            </div>
+            </div>}
 
             {/* ── Create panel ─────────────────────────────────── */}
             {panel === 'create' && (
