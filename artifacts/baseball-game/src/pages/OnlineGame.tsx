@@ -256,7 +256,10 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
     : `Inning ${gameState.inning} — ${gameState.half === 0 ? 'Top' : 'Bottom'}`;
 
   const pitcherReady = roomData.atBat.pitcherChoice !== null;
-  const submitted = myChoice !== null;
+  // Track whether the local choice has actually been sent to Firebase (not just selected locally)
+  const sentToFirebase = isPitcher
+    ? roomData.atBat.pitcherChoice !== null
+    : roomData.atBat.batterChoice !== null;
 
   // ── Game Over ──────────────────────────────────────────────────────────────
   if (roomData.phase === 'gameover') {
@@ -318,13 +321,16 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
 
   // ── Main game screen ───────────────────────────────────────────────────────
   const actionLabel = isPitcher
-    ? submitted ? 'Waiting for batter…' : 'Choose your pitch'
+    ? sentToFirebase ? 'Waiting for batter…' : 'Choose your pitch'
     : !pitcherReady ? 'Pitcher is choosing…'
-    : submitted ? 'Waiting for result…'
+    : sentToFirebase ? 'Waiting for result…'
     : '⚡ Pitcher is ready — pick your swing!';
 
-  const canPick = !submitted && !localResult && !switching &&
+  // canPick: can the player still interact with number buttons (not yet sent to Firebase)
+  const canPick = !sentToFirebase && !localResult && !switching &&
     (isPitcher || pitcherReady);
+  // canSubmit: has a local selection and hasn't sent to Firebase yet
+  const canSubmit = canPick && myChoice !== null;
 
   const submitLabel = isPitcher ? 'Pitch' : 'Swing!';
   const submitGradient = isPitcher
@@ -497,15 +503,15 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
 
           <button
             onClick={handleSubmit}
-            disabled={!canPick || myChoice === null}
+            disabled={!canSubmit}
             className={`w-full py-3.5 rounded-xl font-black text-[17px] transition-all border ${
-              canPick && myChoice !== null
+              canSubmit
                 ? 'border-transparent text-white active:scale-95'
                 : 'border-white/10 text-white/20 cursor-not-allowed'
             }`}
             style={{
-              background: canPick && myChoice !== null ? submitGradient : 'rgba(255,255,255,0.04)',
-              boxShadow: canPick && myChoice !== null ? '0 4px 20px rgba(37,99,235,0.3)' : 'none',
+              background: canSubmit ? submitGradient : 'rgba(255,255,255,0.04)',
+              boxShadow: canSubmit ? '0 4px 20px rgba(37,99,235,0.3)' : 'none',
             }}
           >
             {submitLabel}

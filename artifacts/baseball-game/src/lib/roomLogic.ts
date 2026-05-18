@@ -236,10 +236,24 @@ export async function readPushSubscription(
 }
 
 export function setupPresence(code: string, role: 'host' | 'guest'): () => void {
-  const presRef = ref(getDb(), `rooms/${code}/players/${role}`);
-  set(presRef, true);
-  fbOnDisconnect(presRef).set(false);
-  return () => set(presRef, false);
+  const db = getDb();
+  const presRef = ref(db, `rooms/${code}/players/${role}`);
+  const connectedRef = ref(db, '.info/connected');
+
+  // Re-establish presence every time Firebase (re)connects.
+  // Without this, a brief disconnect would fire onDisconnect (setting presence
+  // to false) and it would never be restored after reconnect.
+  const unsubConnected = onValue(connectedRef, (snap) => {
+    if (snap.val() === true) {
+      fbOnDisconnect(presRef).set(false);
+      set(presRef, true);
+    }
+  });
+
+  return () => {
+    unsubConnected();
+    set(presRef, false);
+  };
 }
 
 export function subscribeRoom(
