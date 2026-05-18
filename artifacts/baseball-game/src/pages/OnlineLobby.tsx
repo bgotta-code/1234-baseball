@@ -139,7 +139,7 @@ export function OnlineLobby({ mode, roomCode, setup, guestTeamName, onGameReady,
               onClick={() => {
                 const text = `Join my 1,2,3,4 Baseball game!\nStadium passcode: ${roomCode}\nOpen and tap Join Game: ${window.location.origin}`;
                 if (navigator.share) {
-                  navigator.share({ title: '1,2,3,4 Baseball', text, url: window.location.origin }).catch(() => {});
+                  navigator.share({ title: '1,2,3,4 Baseball', text }).catch(() => {});
                 } else {
                   navigator.clipboard.writeText(text).catch(() => {});
                 }
