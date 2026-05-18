@@ -137,7 +137,7 @@ export function OnlineLobby({ mode, roomCode, setup, guestTeamName, onGameReady,
           {!roomData?.players.guest && (
             <button
               onClick={() => {
-                const text = `Join my 1,2,3,4 Baseball game!\nStadium passcode: ${roomCode}\nOpen and tap Join Game: ${window.location.origin}`;
+                const text = `Join my 1,2,3,4 Baseball game!\nStadium passcode: ${roomCode}\nTap to join: ${window.location.origin}?join=${roomCode}`;
                 if (navigator.share) {
                   navigator.share({ title: '1,2,3,4 Baseball', text }).catch(() => {});
                 } else {

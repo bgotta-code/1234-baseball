@@ -11,7 +11,15 @@ interface SetupProps {
 const INNING_OPTIONS = [3, 5, 7, 9] as const;
 
 export function Setup({ isPaid, onStart, onCreateOnline, onJoinOnline }: SetupProps) {
-  const [panel, setPanel] = useState<'closed' | 'create' | 'join'>('closed');
+  // Auto-open join panel if a ?join=CODE link was tapped
+  const [joinCode, setJoinCode] = useState(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('join')?.toUpperCase() ?? '';
+  });
+  const [panel, setPanel] = useState<'closed' | 'create' | 'join'>(() => {
+    const params = new URLSearchParams(window.location.search);
+    return params.get('join') ? 'join' : 'closed';
+  });
 
   // Create game state
   const [createName, setCreateName] = useState('');
@@ -20,7 +28,6 @@ export function Setup({ isPaid, onStart, onCreateOnline, onJoinOnline }: SetupPr
 
   // Join game state
   const [joinTeamName, setJoinTeamName] = useState('');
-  const [joinCode, setJoinCode] = useState('');
 
   const appUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
