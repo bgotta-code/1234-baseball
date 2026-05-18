@@ -72,22 +72,15 @@ export function Setup({ isPaid, onStart, onCreateOnline, onJoinOnline }: SetupPr
             </div>
 
             {/* Primary buttons */}
-            {panel === 'closed' && <div className="flex gap-2">
+            {panel === 'closed' && (
               <button
                 onClick={() => setPanel('create')}
-                className="flex-1 py-3.5 rounded-xl font-black text-[15px] transition-all active:scale-95 border border-transparent text-white"
+                className="w-full py-3.5 rounded-xl font-black text-[15px] transition-all active:scale-95 border border-transparent text-white"
                 style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', boxShadow: '0 4px 20px rgba(22,163,74,0.35)' }}
               >
                 Play Ball
               </button>
-              <button
-                onClick={() => setPanel('join')}
-                className="flex-1 py-3.5 rounded-xl font-bold text-[14px] transition-all active:scale-95 border border-white/20 text-white/60"
-                style={{ background: 'rgba(255,255,255,0.06)' }}
-              >
-                Join Game
-              </button>
-            </div>}
+            )}
 
             {/* ── Create panel ─────────────────────────────────── */}
             {panel === 'create' && (
@@ -192,34 +185,32 @@ export function Setup({ isPaid, onStart, onCreateOnline, onJoinOnline }: SetupPr
                   className="w-full rounded-xl px-4 py-3 text-[16px] font-semibold text-white placeholder-white/25 outline-none border border-white/20 focus:border-green-400 transition-colors"
                   style={{ background: 'rgba(255,255,255,0.08)' }}
                 />
-                <div className="flex gap-2">
-                  <input
-                    type="text"
-                    value={joinCode}
-                    onChange={e => setJoinCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
-                    placeholder="Stadium Passcode"
-                    maxLength={6}
-                    className="flex-1 rounded-xl px-4 py-3 text-[16px] font-bold text-white placeholder-white/25 outline-none border border-white/20 focus:border-amber-400 transition-colors tracking-widest uppercase"
-                    style={{ background: 'rgba(255,255,255,0.08)' }}
-                    onKeyDown={e => { if (e.key === 'Enter') handleJoin(); }}
-                  />
-                  <button
-                    onClick={handleJoin}
-                    disabled={joinCode.trim().length < 4}
-                    className={`px-5 py-3 rounded-xl font-bold text-[14px] transition-all border ${
-                      joinCode.trim().length >= 4
-                        ? 'border-transparent text-white active:scale-95'
-                        : 'border-white/10 text-white/25 cursor-not-allowed'
-                    }`}
-                    style={{
-                      background: joinCode.trim().length >= 4
-                        ? 'linear-gradient(135deg,#d97706,#b45309)'
-                        : 'rgba(255,255,255,0.04)',
-                    }}
-                  >
-                    Join
-                  </button>
-                </div>
+                <input
+                  type="text"
+                  value={joinCode}
+                  onChange={e => setJoinCode(e.target.value.toUpperCase().replace(/[^A-Z0-9]/g, ''))}
+                  placeholder="Stadium Passcode"
+                  maxLength={6}
+                  className="w-full rounded-xl px-4 py-3 text-[16px] font-bold text-white placeholder-white/25 outline-none border border-white/20 focus:border-amber-400 transition-colors tracking-widest uppercase"
+                  style={{ background: 'rgba(255,255,255,0.08)' }}
+                  onKeyDown={e => { if (e.key === 'Enter') handleJoin(); }}
+                />
+                <button
+                  onClick={handleJoin}
+                  disabled={joinCode.trim().length < 4}
+                  className={`w-full py-3.5 rounded-xl font-bold text-[15px] transition-all border ${
+                    joinCode.trim().length >= 4
+                      ? 'border-transparent text-white active:scale-95'
+                      : 'border-white/10 text-white/25 cursor-not-allowed'
+                  }`}
+                  style={{
+                    background: joinCode.trim().length >= 4
+                      ? 'linear-gradient(135deg,#d97706,#b45309)'
+                      : 'rgba(255,255,255,0.04)',
+                  }}
+                >
+                  Join Game
+                </button>
               </div>
             )}
 
