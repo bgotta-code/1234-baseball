@@ -159,6 +159,74 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
     }
   }, [atBatSeq, atBatPC, atBatBC]);
 
+  // ── Ad display ─────────────────────────────────────────────────────────────
+  const startAd = useCallback((callback: () => void) => {
+    const adDuration = isPaid ? 5 : 15;
+    postAdCallback.current = callback;
+    setAdCountdown(adDuration);
+    setShowAd(true);
+    if (adTimerRef.current) clearInterval(adTimerRef.current);
+    let count = adDuration;
+    adTimerRef.current = setInterval(() => {
+      count--;
+      setAdCountdown(count);
+      if (count <= 0) {
+        if (adTimerRef.current) clearInterval(adTimerRef.current);
+        setShowAd(false);
+        postAdCallback.current?.();
+      }
+    }, 1000);
+  }, [isPaid]);
+
+  // ── Runner + ball animation ────────────────────────────────────────────────
+  const startRunnerAnimation = useCallback((
+    prevBases: [boolean, boolean, boolean],
+    dist: number,
+    twoOut: boolean,
+  ) => {
+    animTimersRef.current.forEach(clearTimeout);
+    animTimersRef.current = [];
+    const nextId = () => String(++runnerIdRef.current);
+    const runnerAdv = (twoOut && dist < 4) ? dist + 1 : dist;
+    const batterAdv = dist;
+    const totalSteps = Math.max(runnerAdv, batterAdv);
+    const initial: Array<{ id: string; pos: number; maxPos: number }> = [];
+    if (prevBases[2]) initial.push({ id: nextId(), pos: 3, maxPos: 4 });
+    if (prevBases[1]) initial.push({ id: nextId(), pos: 2, maxPos: 4 });
+    if (prevBases[0]) initial.push({ id: nextId(), pos: 1, maxPos: 4 });
+    initial.push({ id: nextId(), pos: 0, maxPos: batterAdv });
+    const scoringCount =
+      (prevBases[2] && 3 + runnerAdv >= 4 ? 1 : 0) +
+      (prevBases[1] && 2 + runnerAdv >= 4 ? 1 : 0) +
+      (prevBases[0] && 1 + runnerAdv >= 4 ? 1 : 0) +
+      (batterAdv >= 4 ? 1 : 0);
+    setAnimRunners(initial);
+    const STEP_MS = 500;
+    for (let step = 1; step <= totalSteps; step++) {
+      const t = setTimeout(() => {
+        setAnimRunners(prev =>
+          prev === null ? null : prev.map(r => ({ ...r, pos: Math.min(r.pos + 1, r.maxPos) }))
+        );
+      }, step * STEP_MS);
+      animTimersRef.current.push(t);
+    }
+    const cleanT = setTimeout(() => {
+      setAnimRunners(prev => prev === null ? null : prev.filter(r => r.pos <= 3));
+      if (scoringCount > 0) {
+        for (let i = 0; i < scoringCount; i++) setTimeout(() => playScoreRipple(), i * 220);
+        const flashes = Array.from({ length: scoringCount }, (_, i) => ({
+          id: `${Date.now()}-${i}`,
+          delay: i * 220,
+        }));
+        setHomeFlashes(f => [...f, ...flashes]);
+        setTimeout(() => setHomeFlashes(f => f.filter(x => !flashes.some(n => n.id === x.id))), 1100);
+      }
+    }, totalSteps * STEP_MS + 460);
+    animTimersRef.current.push(cleanT);
+    const endT = setTimeout(() => setAnimRunners(null), (totalSteps + 0.7) * STEP_MS + 460);
+    animTimersRef.current.push(endT);
+  }, []);
+
   // ── HOST: resolve when both choices present ────────────────────────────────
   useEffect(() => {
     if (!roomData || role !== 'host' || resolving.current) return;
@@ -249,7 +317,9 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
       setBallPos({ x: 160, y: 268 });
       ballTimersRef.current.push(setTimeout(() => setBallPos(landing), 50));
       ballTimersRef.current.push(setTimeout(() => setBallPos(null), 800));
-      startRunnerAnimation(la.prevBases ?? [false, false, false], la.hitDist ?? 1, false);
+      const prevB = la.prevBases?.length === 3 ? la.prevBases : [false, false, false] as [boolean, boolean, boolean];
+      const twoOut = (roomData.gameState?.outs ?? 0) === 2;
+      startRunnerAnimation(prevB, la.hitDist ?? 1, twoOut);
       playHitSound(la.hitDist ?? 1, la.half);
     } else {
       playOutSound(la.half);
@@ -268,72 +338,6 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
 
     return () => { if (resultTimerRef.current) clearTimeout(resultTimerRef.current); };
   }, [lastAtBatSeq]);
-
-  const startAd = useCallback((callback: () => void) => {
-    const adDuration = isPaid ? 5 : 15;
-    postAdCallback.current = callback;
-    setAdCountdown(adDuration);
-    setShowAd(true);
-    if (adTimerRef.current) clearInterval(adTimerRef.current);
-    let count = adDuration;
-    adTimerRef.current = setInterval(() => {
-      count--;
-      setAdCountdown(count);
-      if (count <= 0) {
-        if (adTimerRef.current) clearInterval(adTimerRef.current);
-        setShowAd(false);
-        postAdCallback.current?.();
-      }
-    }, 1000);
-  }, [isPaid]);
-
-  const startRunnerAnimation = useCallback((
-    prevBases: [boolean, boolean, boolean],
-    dist: number,
-    twoOut: boolean,
-  ) => {
-    animTimersRef.current.forEach(clearTimeout);
-    animTimersRef.current = [];
-    const nextId = () => String(++runnerIdRef.current);
-    const runnerAdv = (twoOut && dist < 4) ? dist + 1 : dist;
-    const batterAdv = dist;
-    const totalSteps = Math.max(runnerAdv, batterAdv);
-    const initial: Array<{ id: string; pos: number; maxPos: number }> = [];
-    if (prevBases[2]) initial.push({ id: nextId(), pos: 3, maxPos: 4 });
-    if (prevBases[1]) initial.push({ id: nextId(), pos: 2, maxPos: 4 });
-    if (prevBases[0]) initial.push({ id: nextId(), pos: 1, maxPos: 4 });
-    initial.push({ id: nextId(), pos: 0, maxPos: batterAdv });
-    const scoringCount =
-      (prevBases[2] && 3 + runnerAdv >= 4 ? 1 : 0) +
-      (prevBases[1] && 2 + runnerAdv >= 4 ? 1 : 0) +
-      (prevBases[0] && 1 + runnerAdv >= 4 ? 1 : 0) +
-      (batterAdv >= 4 ? 1 : 0);
-    setAnimRunners(initial);
-    const STEP_MS = 500;
-    for (let step = 1; step <= totalSteps; step++) {
-      const t = setTimeout(() => {
-        setAnimRunners(prev =>
-          prev === null ? null : prev.map(r => ({ ...r, pos: Math.min(r.pos + 1, r.maxPos) }))
-        );
-      }, step * STEP_MS);
-      animTimersRef.current.push(t);
-    }
-    const cleanT = setTimeout(() => {
-      setAnimRunners(prev => prev === null ? null : prev.filter(r => r.pos <= 3));
-      if (scoringCount > 0) {
-        for (let i = 0; i < scoringCount; i++) setTimeout(() => playScoreRipple(), i * 220);
-        const flashes = Array.from({ length: scoringCount }, (_, i) => ({
-          id: `${Date.now()}-${i}`,
-          delay: i * 220,
-        }));
-        setHomeFlashes(f => [...f, ...flashes]);
-        setTimeout(() => setHomeFlashes(f => f.filter(x => !flashes.some(n => n.id === x.id))), 1100);
-      }
-    }, totalSteps * STEP_MS + 460);
-    animTimersRef.current.push(cleanT);
-    const endT = setTimeout(() => setAnimRunners(null), (totalSteps + 0.7) * STEP_MS + 460);
-    animTimersRef.current.push(endT);
-  }, []);
 
   const handleMuteToggle = useCallback(() => setMuted(toggleMute()), []);
 

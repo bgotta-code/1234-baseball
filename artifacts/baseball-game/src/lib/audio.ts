@@ -7,14 +7,17 @@ export function isMuted() { return _muted; }
 export function toggleMute() { _muted = !_muted; return _muted; }
 
 export function unlockAudio() {
-  if (audioUnlocked) return;
   try {
     if (!audioCtx) audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    if (audioCtx.state === 'suspended') audioCtx.resume();
-    const buf = audioCtx.createBuffer(1, 1, audioCtx.sampleRate);
-    const src = audioCtx.createBufferSource();
-    src.buffer = buf; src.connect(audioCtx.destination); src.start(0);
-    audioUnlocked = true;
+    if (audioCtx.state === 'suspended') {
+      void audioCtx.resume();
+      const buf = audioCtx.createBuffer(1, 1, audioCtx.sampleRate);
+      const src = audioCtx.createBufferSource();
+      src.buffer = buf; src.connect(audioCtx.destination); src.start(0);
+      audioUnlocked = false; // try again on the next gesture until context is running
+    } else {
+      audioUnlocked = true;
+    }
   } catch (_) {}
 }
 
