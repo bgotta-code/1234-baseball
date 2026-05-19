@@ -133,6 +133,15 @@ export function nextHalf(
     halfInningStartScores: [...state.scores] as [number, number],
   };
 
+  // If home team already leads going into the bottom of the final (or any extra)
+  // inning they don't need to bat — game over immediately.
+  if (half === 1 && inning >= config.innings) {
+    const [away, home] = state.scores;
+    if (home > away) {
+      return { newState: baseNext, gameOver: true };
+    }
+  }
+
   // Still within scheduled innings — keep playing
   if (inning <= config.innings) {
     return { newState: baseNext, gameOver: false };

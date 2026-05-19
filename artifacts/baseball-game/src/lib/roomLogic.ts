@@ -29,6 +29,7 @@ export interface LastAtBat {
   walkoff: boolean;
   pitcherNum: number;
   batterNum: number;
+  prevBases: [boolean, boolean, boolean];
 }
 
 export type RoomPhase = 'lobby' | 'playing' | 'gameover' | 'cancelled';
@@ -109,6 +110,7 @@ function parseRoomDoc(raw: unknown): ParsedRoomDoc | null {
       walkoff: (lastAtBatRaw.walkoff as boolean) ?? false,
       pitcherNum: (lastAtBatRaw.pitcherNum as number) ?? 0,
       batterNum: (lastAtBatRaw.batterNum as number) ?? 0,
+      prevBases: toArr<boolean>(lastAtBatRaw.prevBases) as [boolean, boolean, boolean],
     } : null,
   };
 }
@@ -190,6 +192,7 @@ export async function writeResolution(
   walkoff: boolean,
   pitcherNum: number,
   batterNum: number,
+  prevBases: [boolean, boolean, boolean],
 ): Promise<void> {
   await update(roomRef(code), {
     phase: gameOver ? 'gameover' : 'playing',
@@ -207,6 +210,7 @@ export async function writeResolution(
       walkoff,
       pitcherNum,
       batterNum,
+      prevBases,
     },
   });
 }

@@ -6,7 +6,7 @@ import {
 } from '@/lib/roomLogic';
 import { subscribeToPush, isPushSupported } from '@/lib/pushNotifications';
 import { resolveAtBat, nextHalf, GameState } from '@/lib/gameLogic';
-import { playHitSound, playOutSound, isMuted, toggleMute, unlockAudio } from '@/lib/audio';
+import { playHitSound, playOutSound, playSwoosh, playScoreRipple, isMuted, toggleMute, unlockAudio } from '@/lib/audio';
 import { LineScore } from '@/components/LineScore';
 import { Stadium } from '@/components/Stadium';
 
@@ -47,6 +47,17 @@ function computeDisplayMsg(
   return result.message;
 }
 
+const BALL_LANDINGS: Record<number, Array<{ x: number; y: number }>> = {
+  1: [{ x: 80, y: 140 }, { x: 150, y: 110 }, { x: 220, y: 140 }],
+  2: [{ x: 30, y: 158 }, { x: 270, y: 158 }],
+  3: [{ x: 112, y: 88 }, { x: 188, y: 88 }],
+  4: [{ x: 150, y: -8 }],
+};
+function pickLanding(dist: number) {
+  const arr = BALL_LANDINGS[dist] ?? BALL_LANDINGS[1];
+  return arr[Math.floor(Math.random() * arr.length)];
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGameProps) {
@@ -58,6 +69,12 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
   const [muted, setMuted] = useState(isMuted);
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [showRules, setShowRules] = useState(true);
+  const [showAd, setShowAd] = useState(false);
+  const [adCountdown, setAdCountdown] = useState(0);
+  const [animRunners, setAnimRunners] = useState<Array<{ id: string; pos: number; maxPos: number }> | null>(null);
+  const [homeFlashes, setHomeFlashes] = useState<Array<{ id: string; delay: number }>>([]);
+  const [ballPos, setBallPos] = useState<{ x: number; y: number } | null>(null);
+  const [opponentDisconnected, setOpponentDisconnected] = useState(false);
 
   const resolving = useRef(false);
   const lastResolvedSeq = useRef(-1);
@@ -65,6 +82,12 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
   const resultTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const switchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const leaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const adTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const postAdCallback = useRef<(() => void) | null>(null);
+  const animTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const ballTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+  const runnerIdRef = useRef(0);
+  const disconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Firebase subscription + presence ───────────────────────────────────────
   useEffect(() => {
@@ -81,6 +104,38 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
       if (sub) writePushSubscription(roomCode, role, sub).catch(() => {});
     });
   }, [roomCode, role]);
+
+  // ── Re-unlock audio on any touch/click (handles iOS/Android suspension) ───
+  useEffect(() => {
+    const handler = () => unlockAudio();
+    document.addEventListener('touchstart', handler, false);
+    document.addEventListener('touchend', handler, false);
+    document.addEventListener('click', handler, false);
+    return () => {
+      document.removeEventListener('touchstart', handler);
+      document.removeEventListener('touchend', handler);
+      document.removeEventListener('click', handler);
+    };
+  }, []);
+
+  // ── Debounced opponent-disconnect detection ────────────────────────────────
+  // Give 10 s grace period so a screen-lock / brief reconnect doesn't kill the game.
+  useEffect(() => {
+    const oppOnline = roomData
+      ? (role === 'host' ? roomData.players.guest : roomData.players.host)
+      : true;
+    if (oppOnline === false && roomData?.phase === 'playing') {
+      if (!disconnectTimerRef.current) {
+        disconnectTimerRef.current = setTimeout(() => setOpponentDisconnected(true), 10000);
+      }
+    } else {
+      if (disconnectTimerRef.current) {
+        clearTimeout(disconnectTimerRef.current);
+        disconnectTimerRef.current = null;
+      }
+      setOpponentDisconnected(false);
+    }
+  }, [roomData?.players.host, roomData?.players.guest, roomData?.phase, role]);
 
   // ── Reset myChoice when a new at-bat starts ────────────────────────────────
   const atBatSeq = roomData?.atBat.seq;
@@ -104,6 +159,7 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
     resolving.current = true;
     lastResolvedSeq.current = atBat.seq;
 
+    const prevBases = gameState.bases; // capture bases BEFORE resolution
     const state: GameState = {
       ...gameState,
       pitcherChoice: atBat.pitcherChoice,
@@ -116,37 +172,51 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
     setReveal({ p: atBat.pitcherChoice, b: atBat.batterChoice });
     setLocalResult({ message: displayMsg, type: atBatResult.type });
 
-    if (atBatResult.type === 'hit') playHitSound(atBatResult.hitDist!, gameState.half);
-    else playOutSound(gameState.half);
+    if (atBatResult.type === 'hit') {
+      ballTimersRef.current.forEach(clearTimeout);
+      ballTimersRef.current = [];
+      const landing = pickLanding(atBatResult.hitDist!);
+      setBallPos({ x: 160, y: 268 });
+      ballTimersRef.current.push(setTimeout(() => setBallPos(landing), 50));
+      ballTimersRef.current.push(setTimeout(() => setBallPos(null), 800));
+      startRunnerAnimation(prevBases, atBatResult.hitDist!, gameState.outs === 2);
+      playHitSound(atBatResult.hitDist!, gameState.half);
+    } else {
+      playOutSound(gameState.half);
+    }
 
     const delay = walkoff ? 4000 : 2500;
     resultTimerRef.current = setTimeout(async () => {
       setLocalResult(null);
 
       if (atBatResult.type === 'side-retired') {
-        setSwitching(true);
-        const { newState, gameOver } = nextHalf(atBatResult.newState, { innings: setup.innings, isPaid });
-        await writeResolution(
-          roomCode, newState, gameOver, atBatResult, displayMsg,
-          atBat.seq + 1, gameState.half, false,
-          atBat.pitcherChoice!, atBat.batterChoice!,
-        );
-        switchTimerRef.current = setTimeout(() => setSwitching(false), 2000);
+        startAd(async () => {
+          setSwitching(true);
+          const { newState, gameOver } = nextHalf(atBatResult.newState, { innings: setup.innings, isPaid });
+          await writeResolution(
+            roomCode, newState, gameOver, atBatResult, displayMsg,
+            atBat.seq + 1, gameState.half, false,
+            atBat.pitcherChoice!, atBat.batterChoice!, prevBases,
+          );
+          switchTimerRef.current = setTimeout(() => setSwitching(false), 2000);
+          resolving.current = false;
+        });
       } else if (walkoff) {
         const { newState } = nextHalf(atBatResult.newState, { innings: setup.innings, isPaid });
         await writeResolution(
           roomCode, newState, true, atBatResult, displayMsg,
           atBat.seq + 1, gameState.half, true,
-          atBat.pitcherChoice!, atBat.batterChoice!,
+          atBat.pitcherChoice!, atBat.batterChoice!, prevBases,
         );
+        resolving.current = false;
       } else {
         await writeResolution(
           roomCode, atBatResult.newState, false, atBatResult, displayMsg,
           atBat.seq + 1, gameState.half, false,
-          atBat.pitcherChoice!, atBat.batterChoice!,
+          atBat.pitcherChoice!, atBat.batterChoice!, prevBases,
         );
+        resolving.current = false;
       }
-      resolving.current = false;
     }, delay);
   }, [atBatPC, atBatBC, atBatSeq]);
 
@@ -161,20 +231,98 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
     setReveal({ p: la.pitcherNum, b: la.batterNum });
     setLocalResult({ message: la.message, type: la.type });
 
-    if (la.type === 'hit') playHitSound(la.hitDist ?? 1, la.half);
-    else playOutSound(la.half);
+    if (la.type === 'hit') {
+      ballTimersRef.current.forEach(clearTimeout);
+      ballTimersRef.current = [];
+      const landing = pickLanding(la.hitDist ?? 1);
+      setBallPos({ x: 160, y: 268 });
+      ballTimersRef.current.push(setTimeout(() => setBallPos(landing), 50));
+      ballTimersRef.current.push(setTimeout(() => setBallPos(null), 800));
+      startRunnerAnimation(la.prevBases ?? [false, false, false], la.hitDist ?? 1, false);
+      playHitSound(la.hitDist ?? 1, la.half);
+    } else {
+      playOutSound(la.half);
+    }
 
     const delay = la.walkoff ? 4000 : 2500;
     resultTimerRef.current = setTimeout(() => {
       setLocalResult(null);
       if (la.type === 'side-retired') {
-        setSwitching(true);
-        switchTimerRef.current = setTimeout(() => setSwitching(false), 2000);
+        startAd(() => {
+          setSwitching(true);
+          switchTimerRef.current = setTimeout(() => setSwitching(false), 2000);
+        });
       }
     }, delay);
 
     return () => { if (resultTimerRef.current) clearTimeout(resultTimerRef.current); };
   }, [lastAtBatSeq]);
+
+  const startAd = useCallback((callback: () => void) => {
+    const adDuration = isPaid ? 5 : 15;
+    postAdCallback.current = callback;
+    setAdCountdown(adDuration);
+    setShowAd(true);
+    if (adTimerRef.current) clearInterval(adTimerRef.current);
+    let count = adDuration;
+    adTimerRef.current = setInterval(() => {
+      count--;
+      setAdCountdown(count);
+      if (count <= 0) {
+        if (adTimerRef.current) clearInterval(adTimerRef.current);
+        setShowAd(false);
+        postAdCallback.current?.();
+      }
+    }, 1000);
+  }, [isPaid]);
+
+  const startRunnerAnimation = useCallback((
+    prevBases: [boolean, boolean, boolean],
+    dist: number,
+    twoOut: boolean,
+  ) => {
+    animTimersRef.current.forEach(clearTimeout);
+    animTimersRef.current = [];
+    const nextId = () => String(++runnerIdRef.current);
+    const runnerAdv = (twoOut && dist < 4) ? dist + 1 : dist;
+    const batterAdv = dist;
+    const totalSteps = Math.max(runnerAdv, batterAdv);
+    const initial: Array<{ id: string; pos: number; maxPos: number }> = [];
+    if (prevBases[2]) initial.push({ id: nextId(), pos: 3, maxPos: 4 });
+    if (prevBases[1]) initial.push({ id: nextId(), pos: 2, maxPos: 4 });
+    if (prevBases[0]) initial.push({ id: nextId(), pos: 1, maxPos: 4 });
+    initial.push({ id: nextId(), pos: 0, maxPos: batterAdv });
+    const scoringCount =
+      (prevBases[2] && 3 + runnerAdv >= 4 ? 1 : 0) +
+      (prevBases[1] && 2 + runnerAdv >= 4 ? 1 : 0) +
+      (prevBases[0] && 1 + runnerAdv >= 4 ? 1 : 0) +
+      (batterAdv >= 4 ? 1 : 0);
+    setAnimRunners(initial);
+    const STEP_MS = 500;
+    for (let step = 1; step <= totalSteps; step++) {
+      const t = setTimeout(() => {
+        setAnimRunners(prev =>
+          prev === null ? null : prev.map(r => ({ ...r, pos: Math.min(r.pos + 1, r.maxPos) }))
+        );
+      }, step * STEP_MS);
+      animTimersRef.current.push(t);
+    }
+    const cleanT = setTimeout(() => {
+      setAnimRunners(prev => prev === null ? null : prev.filter(r => r.pos <= 3));
+      if (scoringCount > 0) {
+        for (let i = 0; i < scoringCount; i++) setTimeout(() => playScoreRipple(), i * 220);
+        const flashes = Array.from({ length: scoringCount }, (_, i) => ({
+          id: `${Date.now()}-${i}`,
+          delay: i * 220,
+        }));
+        setHomeFlashes(f => [...f, ...flashes]);
+        setTimeout(() => setHomeFlashes(f => f.filter(x => !flashes.some(n => n.id === x.id))), 1100);
+      }
+    }, totalSteps * STEP_MS + 460);
+    animTimersRef.current.push(cleanT);
+    const endT = setTimeout(() => setAnimRunners(null), (totalSteps + 0.7) * STEP_MS + 460);
+    animTimersRef.current.push(endT);
+  }, []);
 
   const handleMuteToggle = useCallback(() => setMuted(toggleMute()), []);
 
@@ -191,6 +339,7 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
       ? (role === 'host' && gs.half === 0) || (role === 'guest' && gs.half === 1)
       : (role === 'host' && gs.half === 1) || (role === 'guest' && gs.half === 0);
     if (isPitcherNow) {
+      playSwoosh();
       await writePitcherChoice(roomCode, myChoice);
       const batterRole = role === 'host' ? 'guest' : 'host';
       readPushSubscription(roomCode, batterRole).then((sub) => {
@@ -221,9 +370,32 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
     );
   }
 
+  // ── Ad screen ─────────────────────────────────────────────────────────────
+  if (showAd) {
+    return (
+      <div className="min-h-screen flex items-center justify-center p-4"
+        style={{ background: 'linear-gradient(160deg,#0a2a0a 0%,#1a4a1a 100%)' }}>
+        <div className="w-full max-w-sm">
+          <div className="rounded-2xl border border-white/20 p-6 text-center"
+            style={{ background: 'rgba(0,0,0,0.5)' }}>
+            <p className="text-[10px] text-white/40 uppercase tracking-widest mb-4 font-semibold">Advertisement</p>
+            <div className="rounded-xl h-28 flex items-center justify-center mb-5 border border-white/10"
+              style={{ background: 'rgba(255,255,255,0.05)' }}>
+              <p className="text-sm text-white/30">Your ad here</p>
+            </div>
+            <p className="text-sm text-white/55">
+              Next inning in{' '}
+              <span className="font-black text-white text-xl">{adCountdown}</span>
+              {' '}seconds
+            </p>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   // ── Disconnection ──────────────────────────────────────────────────────────
-  const opponentOnline = role === 'host' ? roomData.players.guest : roomData.players.host;
-  if (!opponentOnline && roomData.phase === 'playing') {
+  if (opponentDisconnected) {
     return (
       <div className="min-h-screen flex items-center justify-center p-5" style={{ background: bg }}>
         <div className="w-full max-w-sm text-center flex flex-col gap-4">
@@ -424,6 +596,9 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
             awayTeam={setup.awayTeam}
             homeTeam={setup.homeTeam}
             battingTeam={gameState.half as 0 | 1}
+            runners={animRunners ?? undefined}
+            homeFlashes={homeFlashes}
+            ball={ballPos ?? undefined}
           />
         </div>
 
