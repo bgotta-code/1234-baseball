@@ -75,6 +75,7 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
   const [homeFlashes, setHomeFlashes] = useState<Array<{ id: string; delay: number }>>([]);
   const [ballPos, setBallPos] = useState<{ x: number; y: number } | null>(null);
   const [opponentDisconnected, setOpponentDisconnected] = useState(false);
+  const [opponentTimeout, setOpponentTimeout] = useState(false);
 
   const resolving = useRef(false);
   const lastResolvedSeq = useRef(-1);
@@ -87,6 +88,7 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
   const animTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const ballTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const runnerIdRef = useRef(0);
+  const timeoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const disconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // ── Firebase subscription + presence ───────────────────────────────────────
@@ -118,21 +120,30 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
     };
   }, []);
 
-  // ── Debounced opponent-disconnect detection ────────────────────────────────
-  // Give 10 s grace period so a screen-lock / brief reconnect doesn't kill the game.
+  // ── Two-tier opponent-absence detection ───────────────────────────────────
+  // 30 s  → "called timeout" banner (non-blocking, game waits)
+  // 5 min → true disconnect screen
   useEffect(() => {
     const oppOnline = roomData
       ? (role === 'host' ? roomData.players.guest : roomData.players.host)
       : true;
     if (oppOnline === false && roomData?.phase === 'playing') {
+      if (!timeoutTimerRef.current) {
+        timeoutTimerRef.current = setTimeout(() => setOpponentTimeout(true), 30000);
+      }
       if (!disconnectTimerRef.current) {
-        disconnectTimerRef.current = setTimeout(() => setOpponentDisconnected(true), 10000);
+        disconnectTimerRef.current = setTimeout(() => setOpponentDisconnected(true), 5 * 60 * 1000);
       }
     } else {
+      if (timeoutTimerRef.current) {
+        clearTimeout(timeoutTimerRef.current);
+        timeoutTimerRef.current = null;
+      }
       if (disconnectTimerRef.current) {
         clearTimeout(disconnectTimerRef.current);
         disconnectTimerRef.current = null;
       }
+      setOpponentTimeout(false);
       setOpponentDisconnected(false);
     }
   }, [roomData?.players.host, roomData?.players.guest, roomData?.phase, role]);
@@ -512,6 +523,17 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
   return (
     <div className="min-h-screen flex items-center justify-center px-4 py-6"
       style={{ background: bg }}>
+
+      {/* ── Timeout banner ───────────────────────────────────────────────── */}
+      {opponentTimeout && !opponentDisconnected && (
+        <div className="fixed top-0 inset-x-0 z-40 flex justify-center px-4 pt-3 pointer-events-none">
+          <div className="rounded-2xl px-5 py-3 flex items-center gap-3 shadow-xl"
+            style={{ background: 'rgba(10,30,10,0.92)', border: '1px solid rgba(255,255,255,0.12)' }}>
+            <span className="text-lg">⏸</span>
+            <p className="text-[13px] font-semibold text-white/80">Opponent has called timeout</p>
+          </div>
+        </div>
+      )}
 
       {/* ── Rules overlay ─────────────────────────────────────────────────── */}
       {showRules && (
