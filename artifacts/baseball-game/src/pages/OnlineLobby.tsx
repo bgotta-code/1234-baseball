@@ -3,7 +3,7 @@ import {
   createRoom, joinRoom, cancelRoom, startGame, subscribeRoom,
   setupPresence, ParsedRoomDoc, RoomSetup,
 } from '@/lib/roomLogic';
-import { unlockAudio } from '@/lib/audio';
+import { unlockAudio, playPlayBallJingle } from '@/lib/audio';
 
 interface OnlineLobbyProps {
   mode: 'host' | 'guest';
@@ -64,6 +64,7 @@ export function OnlineLobby({ mode, roomCode, setup, guestTeamName, onGameReady,
 
     if (mode === 'host' && roomData.players.guest && roomData.phase === 'lobby') {
       started.current = true;
+      playPlayBallJingle();
       startGame(roomCode).then(() => {
         onGameReady(setup!, roomCode, 'host');
       });
@@ -71,6 +72,7 @@ export function OnlineLobby({ mode, roomCode, setup, guestTeamName, onGameReady,
 
     if (mode === 'guest' && roomData.phase === 'playing' && roomData.gameState) {
       started.current = true;
+      playPlayBallJingle();
       onGameReady(roomData.setup, roomCode, 'guest');
     }
   }, [roomData]);

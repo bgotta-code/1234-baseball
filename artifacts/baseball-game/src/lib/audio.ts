@@ -397,3 +397,51 @@ export function playOutSound(half: number) {
   if (half === 0) playCrowdCheer(); // away out → home crowd cheers
   else playCrowdGroan();             // home out → home crowd groans
 }
+
+// ── PLAY BALL JINGLE — opening notes of "Take Me Out to the Ballgame" ─────────
+// Plays when the opponent accepts the game invitation.
+// Stadium organ (sawtooth + lowpass) texture with reverb, then a crowd cheer.
+export function playPlayBallJingle() {
+  if (_muted) return;
+  try {
+    const ctx = getCtx();
+    // "Take  me   out   to   the  ball  game"   (G major, stadium organ)
+    const notes: [number, number, number][] = [
+      [587, 0.00, 0.20],  // D5  "Take"
+      [494, 0.22, 0.20],  // B4  "me"
+      [784, 0.44, 0.44],  // G5  "out"  — the big jump up
+      [587, 0.90, 0.20],  // D5  "to"
+      [659, 1.12, 0.20],  // E5  "the"
+      [587, 1.34, 0.62],  // D5  "ball"
+      [523, 1.98, 0.52],  // C5  "game"
+    ];
+    // Shared reverb bus so all notes share the same room sound
+    const bus = ctx.createGain(); bus.gain.value = 1.0;
+    reverb(ctx, bus, 0.45).connect(ctx.destination);
+    notes.forEach(([freq, offset, dur]) => {
+      const t = ctx.currentTime + offset;
+      [1, 1.006].forEach(detune => {
+        const osc = ctx.createOscillator();
+        const filt = ctx.createBiquadFilter();
+        const g = ctx.createGain();
+        osc.type = 'sawtooth';
+        osc.frequency.value = freq * detune;
+        filt.type = 'lowpass'; filt.frequency.value = 2400; filt.Q.value = 0.5;
+        g.gain.setValueAtTime(0.001, t);
+        g.gain.linearRampToValueAtTime(0.14, t + 0.022);
+        g.gain.setValueAtTime(0.14, t + dur - 0.045);
+        g.gain.linearRampToValueAtTime(0.001, t + dur);
+        osc.connect(filt); filt.connect(g); g.connect(bus);
+        osc.start(t); osc.stop(t + dur + 0.02);
+      });
+    });
+    // Crowd cheer wells up after the melody
+    const cheerT = ctx.currentTime + 2.6;
+    const v = makeCrowdVoices(ctx, 2.2, cheerT, 'cheer', 35);
+    reverb(ctx, v, 0.55).connect(ctx.destination);
+    v.gain.setValueAtTime(0.001, cheerT);
+    v.gain.linearRampToValueAtTime(0.10, cheerT + 0.35);
+    v.gain.linearRampToValueAtTime(0.065, cheerT + 1.1);
+    v.gain.exponentialRampToValueAtTime(0.001, cheerT + 2.2);
+  } catch (_) {}
+}
