@@ -1,6 +1,6 @@
 import { getDb } from './firebase';
 import {
-  ref, set, get, update, onValue, off, onDisconnect as fbOnDisconnect,
+  ref, set, get, update, runTransaction, onValue, off, onDisconnect as fbOnDisconnect,
 } from 'firebase/database';
 import { GameState, initState, AtBatResult } from './gameLogic';
 
@@ -150,11 +150,17 @@ export async function joinRoom(code: string, guestTeamName?: string): Promise<'o
   const snap = await get(roomRef(code));
   if (!snap.exists()) return 'not-found';
   const data = snap.val() as Record<string, unknown>;
-  const players = data.players as Record<string, boolean>;
   if (data.phase === 'cancelled') return 'cancelled';
-  if (players.guest) return 'full';
   if (data.phase !== 'lobby') return 'full';
-  await update(ref(getDb(), `rooms/${code}/players`), { guest: true });
+
+  // Atomically claim the guest slot — aborts if already taken by a concurrent joiner
+  const guestRef = ref(getDb(), `rooms/${code}/players/guest`);
+  const txResult = await runTransaction(guestRef, (current) => {
+    if (current === true) return; // abort: already claimed
+    return true;                  // claim it
+  });
+  if (!txResult.committed) return 'full';
+
   if (guestTeamName) {
     const setup = (data.setup ?? {}) as RoomSetup;
     const hostRole = setup.hostRole ?? 'away';
