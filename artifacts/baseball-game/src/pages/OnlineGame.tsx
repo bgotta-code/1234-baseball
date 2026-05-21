@@ -80,6 +80,7 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
   const resolving = useRef(false);
   const lastResolvedSeq = useRef(-1);
   const lastShownSeq = useRef(-1);
+  const roomDataRef = useRef<ParsedRoomDoc | null>(null);
   const resultTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const switchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const leaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -90,6 +91,9 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
   const runnerIdRef = useRef(0);
   const timeoutTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const disconnectTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // ── Keep roomDataRef current so timeouts can read the latest phase ──────────
+  useEffect(() => { roomDataRef.current = roomData; }, [roomData]);
 
   // ── Firebase subscription + presence ───────────────────────────────────────
   useEffect(() => {
@@ -269,9 +273,9 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
       setLocalResult(null);
 
       if (atBatResult.type === 'side-retired') {
-        startAd(async () => {
+        const { newState, gameOver } = nextHalf(atBatResult.newState, { innings: setup.innings, isPaid });
+        const doWrite = async () => {
           setSwitching(true);
-          const { newState, gameOver } = nextHalf(atBatResult.newState, { innings: setup.innings, isPaid });
           await writeResolution(
             roomCode, newState, gameOver, atBatResult, displayMsg,
             atBat.seq + 1, gameState.half, false,
@@ -279,7 +283,12 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
           );
           switchTimerRef.current = setTimeout(() => setSwitching(false), 2000);
           resolving.current = false;
-        });
+        };
+        if (gameOver) {
+          await doWrite();
+        } else {
+          startAd(doWrite);
+        }
       } else if (walkoff) {
         const { newState } = nextHalf(atBatResult.newState, { innings: setup.innings, isPaid });
         await writeResolution(
@@ -328,7 +337,7 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
     const delay = la.walkoff ? 4000 : 2500;
     resultTimerRef.current = setTimeout(() => {
       setLocalResult(null);
-      if (la.type === 'side-retired') {
+      if (la.type === 'side-retired' && roomDataRef.current?.phase !== 'gameover') {
         startAd(() => {
           setSwitching(true);
           switchTimerRef.current = setTimeout(() => setSwitching(false), 2000);
@@ -452,9 +461,9 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
   if (roomData.phase === 'gameover') {
     const [away, home] = gameState.scores;
     const tied = away === home;
-    const hostWins = away > home;
+    const hostWins = setup.hostRole === 'away' ? (away > home) : (home > away);
     const iWin = tied ? false : (role === 'host' ? hostWins : !hostWins);
-    const title = tied ? "It's a Tie!" : iWin ? '🏆 You Win!' : 'Game Over';
+    const title = tied ? "It's a Tie!" : iWin ? '🏆 You Win!' : '🤝 Good Game!';
     const totalInnings = setup.innings + gameState.extraInnings;
     return (
       <div className="min-h-screen flex items-center justify-center p-5" style={{ background: bg }}>
