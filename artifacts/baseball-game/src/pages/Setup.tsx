@@ -73,18 +73,28 @@ export function Setup({ isPaid, onStart, onCreateOnline, onJoinOnline }: SetupPr
 
             {/* Primary buttons */}
             {panel === 'closed' && (
-              <button
-                onClick={() => setPanel('create')}
-                className="w-full py-3.5 rounded-xl font-black text-[15px] transition-all active:scale-95 border border-transparent text-white"
-                style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', boxShadow: '0 4px 20px rgba(22,163,74,0.35)' }}
-              >
-                Play Ball
-              </button>
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => setPanel('create')}
+                  className="w-full py-3.5 rounded-xl font-black text-[15px] transition-all active:scale-95 border border-transparent text-white"
+                  style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', boxShadow: '0 4px 20px rgba(22,163,74,0.35)' }}
+                >
+                  Play Ball
+                </button>
+                <button
+                  onClick={() => setPanel('join')}
+                  className="w-full py-3 rounded-xl font-bold text-[14px] transition-all active:scale-95 border border-white/20 text-white/70"
+                  style={{ background: 'rgba(255,255,255,0.06)' }}
+                >
+                  Join a Game
+                </button>
+              </div>
             )}
 
             {/* ── Create panel ─────────────────────────────────── */}
             {panel === 'create' && (
               <div className="flex flex-col gap-3 pt-1 border-t border-white/10">
+                <button onClick={() => setPanel('closed')} className="text-white/35 text-xs text-left hover:text-white/60 transition-colors">← Back</button>
 
                 <input
                   type="text"
@@ -175,6 +185,7 @@ export function Setup({ isPaid, onStart, onCreateOnline, onJoinOnline }: SetupPr
             {/* ── Join panel ───────────────────────────────────── */}
             {panel === 'join' && (
               <div className="flex flex-col gap-2 pt-1 border-t border-white/10">
+                <button onClick={() => setPanel('closed')} className="text-white/35 text-xs text-left hover:text-white/60 transition-colors">← Back</button>
                 <input
                   type="text"
                   value={joinTeamName}
