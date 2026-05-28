@@ -565,6 +565,7 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
               <li>🏏 Batter guesses which number was chosen</li>
               <li>✅ Correct guess = 1 Single · 2 Double · 3 Triple · 4 HR</li>
               <li>❌ Incorrect guess = Out</li>
+              <li>🏃 2 outs = runners advance 1 extra base</li>
               <li>🔄 3 outs = change sides</li>
               <li className="text-white/45 text-[12px] pt-1 border-t border-white/10">
                 🆓 Free version = 3-inning game + 1 extra inning if needed

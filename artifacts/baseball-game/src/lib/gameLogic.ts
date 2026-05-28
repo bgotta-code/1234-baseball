@@ -95,7 +95,7 @@ export function resolveAtBat(state: GameState): AtBatResult {
     if (newOuts >= 3) {
       return { type: 'side-retired', message: 'Out — side retired', runs: 0, newState };
     }
-    return { type: 'out', message: 'Out', runs: 0, newState };
+    return { type: 'out', message: newOuts === 1 ? '1 Out' : '2 Outs', runs: 0, newState };
   }
 }
 
