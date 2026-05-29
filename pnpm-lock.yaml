@@ -197,6 +197,12 @@ importers:
       pino-http:
         specifier: ^10
         version: 10.5.0
+      stripe:
+        specifier: ^22.2.0
+        version: 22.2.0(@types/node@25.3.5)
+      stripe-replit-sync:
+        specifier: ^1.0.0
+        version: 1.0.0(stripe@22.2.0(@types/node@25.3.5))
       web-push:
         specifier: ^3.6.7
         version: 3.6.7
@@ -658,6 +664,10 @@ importers:
         version: 0.31.9
 
   scripts:
+    dependencies:
+      stripe:
+        specifier: ^22.2.0
+        version: 22.2.0(@types/node@25.3.5)
     devDependencies:
       '@types/node':
         specifier: 'catalog:'
