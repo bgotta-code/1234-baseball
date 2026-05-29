@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { Stadium } from '@/components/Stadium';
 import { LineScore } from '@/components/LineScore';
+import { AdScreen } from '@/components/AdScreen';
 import {
   unlockAudio,
   playSwoosh,
@@ -56,6 +57,7 @@ export function Game({ awayTeam, homeTeam, innings, isPaid, onNewGame }: GamePro
   const abandonTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const adTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const adDurationRef = useRef(15);
   const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const postAdCallback = useRef<(() => void) | null>(null);
   const animTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -166,6 +168,7 @@ export function Game({ awayTeam, homeTeam, innings, isPaid, onNewGame }: GamePro
 
   const startAd = useCallback((callback: () => void) => {
     const adDuration = isPaid ? 5 : 15;
+    adDurationRef.current = adDuration;
     postAdCallback.current = callback;
     setAdCountdown(adDuration);
     setScreen('ad');
@@ -287,26 +290,7 @@ export function Game({ awayTeam, homeTeam, innings, isPaid, onNewGame }: GamePro
 
   // ── AD SCREEN ────────────────────────────────────────────────
   if (screen === 'ad') {
-    return (
-      <div className="min-h-screen flex items-center justify-center p-4"
-        style={{ background: 'linear-gradient(160deg,#0a2a0a 0%,#1a4a1a 100%)' }}>
-        <div className="w-full max-w-sm">
-          <div className="rounded-2xl border border-white/20 p-6 text-center"
-            style={{ background: 'rgba(0,0,0,0.5)' }}>
-            <p className="text-[10px] text-white/40 uppercase tracking-widest mb-4 font-semibold">Advertisement</p>
-            <div className="rounded-xl h-28 flex items-center justify-center mb-5 border border-white/10"
-              style={{ background: 'rgba(255,255,255,0.05)' }}>
-              <p className="text-sm text-white/30">Your ad here</p>
-            </div>
-            <p className="text-sm text-white/55">
-              Next inning in{' '}
-              <span className="font-black text-white text-xl">{adCountdown}</span>
-              {' '}seconds
-            </p>
-          </div>
-        </div>
-      </div>
-    );
+    return <AdScreen countdown={adCountdown} duration={adDurationRef.current} />;
   }
 
   // ── GAME OVER SCREEN ─────────────────────────────────────────
