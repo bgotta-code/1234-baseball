@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { createCheckoutSession } from '@/lib/stripeApi';
 
 interface UpgradeModalProps {
@@ -8,6 +8,11 @@ interface UpgradeModalProps {
 
 export function UpgradeModal({ onClose, onActivate }: UpgradeModalProps) {
   const [tab, setTab] = useState<'buy' | 'redeem'>('buy');
+  const backdropReady = useRef(false);
+  useEffect(() => {
+    const t = setTimeout(() => { backdropReady.current = true; }, 400);
+    return () => clearTimeout(t);
+  }, []);
 
   // Buy tab
   const [email, setEmail] = useState('');
@@ -59,7 +64,7 @@ export function UpgradeModal({ onClose, onActivate }: UpgradeModalProps) {
     <div
       className="fixed inset-0 z-50 flex items-end justify-center"
       style={{ background: 'rgba(0,0,0,0.75)', backdropFilter: 'blur(4px)' }}
-      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+      onClick={(e) => { if (backdropReady.current && e.target === e.currentTarget) onClose(); }}
     >
       <div
         className="w-full max-w-sm rounded-t-2xl overflow-hidden"
