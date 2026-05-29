@@ -1,23 +1,35 @@
 <svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
   <!-- Full-bleed green background (safe for maskable) -->
   <rect width="512" height="512" fill="#14532d"/>
-  <!-- Baseball white circle -->
-  <circle cx="256" cy="256" r="170" fill="white"/>
-  <circle cx="256" cy="256" r="170" fill="none" stroke="#e5e7eb" stroke-width="3"/>
+
+  <!-- Baseball white circle (shifted up to make room for text) -->
+  <circle cx="256" cy="188" r="148" fill="white"/>
+  <circle cx="256" cy="188" r="148" fill="none" stroke="#e5e7eb" stroke-width="3"/>
+
   <!-- Left seam curve -->
-  <path d="M 196 112 C 138 175, 138 337, 196 400" stroke="#dc2626" stroke-width="11" stroke-linecap="round" fill="none"/>
+  <path d="M 200 68 C 146 122, 146 254, 200 308" stroke="#dc2626" stroke-width="10" stroke-linecap="round" fill="none"/>
   <!-- Right seam curve -->
-  <path d="M 316 112 C 374 175, 374 337, 316 400" stroke="#dc2626" stroke-width="11" stroke-linecap="round" fill="none"/>
+  <path d="M 312 68 C 366 122, 366 254, 312 308" stroke="#dc2626" stroke-width="10" stroke-linecap="round" fill="none"/>
+
   <!-- Left stitch marks -->
-  <line x1="178" y1="172" x2="210" y2="182" stroke="#dc2626" stroke-width="7" stroke-linecap="round"/>
-  <line x1="165" y1="213" x2="198" y2="218" stroke="#dc2626" stroke-width="7" stroke-linecap="round"/>
-  <line x1="160" y1="256" x2="193" y2="256" stroke="#dc2626" stroke-width="7" stroke-linecap="round"/>
-  <line x1="165" y1="299" x2="198" y2="294" stroke="#dc2626" stroke-width="7" stroke-linecap="round"/>
-  <line x1="178" y1="340" x2="210" y2="330" stroke="#dc2626" stroke-width="7" stroke-linecap="round"/>
+  <line x1="183" y1="108" x2="213" y2="118" stroke="#dc2626" stroke-width="6" stroke-linecap="round"/>
+  <line x1="170" y1="148" x2="201" y2="153" stroke="#dc2626" stroke-width="6" stroke-linecap="round"/>
+  <line x1="165" y1="188" x2="197" y2="188" stroke="#dc2626" stroke-width="6" stroke-linecap="round"/>
+  <line x1="170" y1="228" x2="201" y2="223" stroke="#dc2626" stroke-width="6" stroke-linecap="round"/>
+  <line x1="183" y1="265" x2="213" y2="255" stroke="#dc2626" stroke-width="6" stroke-linecap="round"/>
+
   <!-- Right stitch marks -->
-  <line x1="302" y1="182" x2="334" y2="172" stroke="#dc2626" stroke-width="7" stroke-linecap="round"/>
-  <line x1="314" y1="218" x2="347" y2="213" stroke="#dc2626" stroke-width="7" stroke-linecap="round"/>
-  <line x1="319" y1="256" x2="352" y2="256" stroke="#dc2626" stroke-width="7" stroke-linecap="round"/>
-  <line x1="314" y1="294" x2="347" y2="299" stroke="#dc2626" stroke-width="7" stroke-linecap="round"/>
-  <line x1="302" y1="330" x2="334" y2="340" stroke="#dc2626" stroke-width="7" stroke-linecap="round"/>
+  <line x1="299" y1="118" x2="329" y2="108" stroke="#dc2626" stroke-width="6" stroke-linecap="round"/>
+  <line x1="311" y1="153" x2="342" y2="148" stroke="#dc2626" stroke-width="6" stroke-linecap="round"/>
+  <line x1="315" y1="188" x2="347" y2="188" stroke="#dc2626" stroke-width="6" stroke-linecap="round"/>
+  <line x1="311" y1="223" x2="342" y2="228" stroke="#dc2626" stroke-width="6" stroke-linecap="round"/>
+  <line x1="299" y1="255" x2="329" y2="265" stroke="#dc2626" stroke-width="6" stroke-linecap="round"/>
+
+  <!-- "1,2,3,4" text below the baseball -->
+  <!-- Drop shadow -->
+  <text x="258" y="424" font-family="Arial Black, Arial, sans-serif" font-weight="900"
+        font-size="108" text-anchor="middle" fill="#052e16" opacity="0.6">1,2,3,4</text>
+  <!-- Main text -->
+  <text x="256" y="420" font-family="Arial Black, Arial, sans-serif" font-weight="900"
+        font-size="108" text-anchor="middle" fill="white">1,2,3,4</text>
 </svg>
