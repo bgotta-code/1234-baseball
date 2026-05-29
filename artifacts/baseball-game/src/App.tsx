@@ -35,6 +35,7 @@ function App() {
         roomCode={screen.roomCode}
         setup={screen.mode === 'host' ? (screen as { type: 'online-lobby'; mode: 'host'; roomCode: string; setup: RoomSetup }).setup : undefined}
         guestTeamName={screen.mode === 'guest' ? (screen as { type: 'online-lobby'; mode: 'guest'; roomCode: string; guestTeamName: string }).guestTeamName : undefined}
+        isPaid={IS_PAID}
         onGameReady={(setup, roomCode, role) =>
           setScreen({ type: 'online-game', roomCode, role, setup })
         }

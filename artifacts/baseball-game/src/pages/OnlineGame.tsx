@@ -71,6 +71,7 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [showRules, setShowRules] = useState(true);
   const [showAd, setShowAd] = useState(false);
+  const [postAd, setPostAd] = useState(false);
   const [adCountdown, setAdCountdown] = useState(0);
   const [animRunners, setAnimRunners] = useState<Array<{ id: string; pos: number; maxPos: number }> | null>(null);
   const [homeFlashes, setHomeFlashes] = useState<Array<{ id: string; delay: number }>>([]);
@@ -158,6 +159,11 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
   const atBatSeq = roomData?.atBat.seq;
   const atBatPC = roomData?.atBat.pitcherChoice;
   const atBatBC = roomData?.atBat.batterChoice;
+
+  // Clear post-ad banner as soon as either player has submitted a pick
+  useEffect(() => {
+    if (atBatPC != null || atBatBC != null) setPostAd(false);
+  }, [atBatPC, atBatBC]);
   useEffect(() => {
     if (atBatPC === null && atBatBC === null) {
       setMyChoice(null);
@@ -180,6 +186,7 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
       if (count <= 0) {
         if (adTimerRef.current) clearInterval(adTimerRef.current);
         setShowAd(false);
+        setPostAd(true);
         postAdCallback.current?.();
       }
     }, 1000);
@@ -673,9 +680,14 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
         {/* Action panel */}
         <div className="rounded-2xl border border-white/15 p-3.5"
           style={{ background: 'rgba(0,0,0,0.42)' }}>
-          <p className={`text-[11px] mb-2.5 font-bold uppercase tracking-wide ${
+          <p className={`text-[11px] mb-1 font-bold uppercase tracking-wide ${
             canPick ? 'text-white' : 'text-white/40'
           }`}>{actionLabel}</p>
+          {postAd && !atBatPC && !atBatBC && (
+            <p className="text-[10px] text-white/35 animate-pulse mb-2">
+              ⏳ Opponent finishing their break…
+            </p>
+          )}
 
           <div className="grid grid-cols-4 gap-2 mb-2.5">
             {[1, 2, 3, 4].map(n => {

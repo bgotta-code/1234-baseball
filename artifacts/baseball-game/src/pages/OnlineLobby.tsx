@@ -10,11 +10,12 @@ interface OnlineLobbyProps {
   roomCode: string;
   setup?: RoomSetup;
   guestTeamName?: string;
+  isPaid?: boolean;
   onGameReady: (setup: RoomSetup, roomCode: string, role: 'host' | 'guest') => void;
   onLeave: () => void;
 }
 
-export function OnlineLobby({ mode, roomCode, setup, guestTeamName, onGameReady, onLeave }: OnlineLobbyProps) {
+export function OnlineLobby({ mode, roomCode, setup, guestTeamName, isPaid, onGameReady, onLeave }: OnlineLobbyProps) {
   const [status, setStatus] = useState<'connecting' | 'waiting' | 'error'>('connecting');
   const [errorMsg, setErrorMsg] = useState('');
   const [roomData, setRoomData] = useState<ParsedRoomDoc | null>(null);
@@ -180,6 +181,19 @@ export function OnlineLobby({ mode, roomCode, setup, guestTeamName, onGameReady,
             <p className="text-white/35 text-sm animate-pulse">Connecting…</p>
           )}
         </div>
+        {!isPaid && roomData && (roomData.setup.innings ?? 3) > 3 && (
+          <div
+            className="rounded-2xl border border-yellow-400/20 px-4 py-3 text-center"
+            style={{ background: 'rgba(234,179,8,0.07)' }}
+          >
+            <p className="text-yellow-300/80 text-[12px] font-semibold">
+              You're joining a {roomData.setup.innings}-inning game — hosted by a paid player.
+            </p>
+            <p className="text-yellow-300/40 text-[11px] mt-1">
+              Upgrade to host your own longer games.
+            </p>
+          </div>
+        )}
         <button onClick={onLeave} className="text-white/30 text-sm underline">Start over</button>
       </div>
     </div>
