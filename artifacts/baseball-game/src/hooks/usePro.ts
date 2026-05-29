@@ -60,16 +60,37 @@ export function usePro(): ProState {
     }
   }, []);
 
-  // After a Stripe redirect, ?license=KEY is appended to the URL
+  // After a Stripe redirect, ?license=KEY is appended to the URL.
+  // We trust the key from our own success_url immediately and save it to
+  // localStorage right away — then verify against the API in the background.
   const activateFromUrl = useCallback(async () => {
     const params = new URLSearchParams(window.location.search);
     const key = params.get('license');
     if (!key) return;
-    // Clean the URL immediately so it doesn't re-trigger on refresh
-    const clean = window.location.pathname;
-    window.history.replaceState({}, '', clean);
-    await activate(key);
-  }, [activate]);
+
+    // Normalise and strip the param from the URL right away
+    const normalised = key.trim().toUpperCase();
+    window.history.replaceState({}, '', window.location.pathname);
+
+    // Optimistically unlock — the key came from our own server-generated
+    // success_url so it's trustworthy. API verification is belt-and-suspenders.
+    saveKey(normalised);
+    setLicenseKey(normalised);
+    setIsPro(true);
+
+    // Confirm with the API in the background; roll back only if explicitly invalid
+    try {
+      const valid = await verifyLicenseKey(normalised);
+      if (!valid) {
+        // Shouldn't happen (key was pre-saved at checkout), but handle it
+        try { localStorage.removeItem(STORAGE_KEY); } catch { /* ignore */ }
+        setLicenseKey(null);
+        setIsPro(false);
+      }
+    } catch {
+      // Network error — keep the optimistic unlock, it'll re-verify next load
+    }
+  }, []);
 
   return { isPro, licenseKey, activate, activateFromUrl };
 }

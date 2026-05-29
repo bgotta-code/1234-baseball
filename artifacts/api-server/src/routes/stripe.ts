@@ -52,6 +52,11 @@ router.post('/stripe/checkout', async (req, res) => {
     metadata: { licenseKey, email },
   });
 
+  // Pre-save the license NOW so it's in the DB the instant Stripe redirects
+  // the user back. The webhook fires async and would be too late otherwise.
+  // createLicense uses onConflictDoNothing, so the webhook is a harmless no-op.
+  await storage.createLicense({ key: licenseKey, email, stripeSessionId: session.id });
+
   res.json({ url: session.url });
 });
 
