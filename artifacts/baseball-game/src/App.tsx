@@ -3,6 +3,7 @@ import { Setup } from '@/pages/Setup';
 import { Game } from '@/pages/Game';
 import { OnlineLobby } from '@/pages/OnlineLobby';
 import { OnlineGame } from '@/pages/OnlineGame';
+import { DesktopGate } from '@/components/DesktopGate';
 import { IS_PAID } from '@/lib/config';
 import { generateRoomCode, RoomSetup } from '@/lib/roomLogic';
 
@@ -13,7 +14,7 @@ type Screen =
   | { type: 'online-lobby'; mode: 'guest'; roomCode: string; guestTeamName: string }
   | { type: 'online-game'; roomCode: string; role: 'host' | 'guest'; setup: RoomSetup };
 
-function App() {
+function AppContent() {
   const [screen, setScreen] = useState<Screen>({ type: 'setup' });
 
   if (screen.type === 'solo') {
@@ -73,6 +74,14 @@ function App() {
         setScreen({ type: 'online-lobby', mode: 'guest', roomCode: code.toUpperCase(), guestTeamName: teamName })
       }
     />
+  );
+}
+
+function App() {
+  return (
+    <DesktopGate>
+      <AppContent />
+    </DesktopGate>
   );
 }
 
