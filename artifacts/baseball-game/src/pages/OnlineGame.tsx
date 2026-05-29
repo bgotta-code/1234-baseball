@@ -167,7 +167,7 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
 
   // ── Ad display ─────────────────────────────────────────────────────────────
   const startAd = useCallback((callback: () => void) => {
-    const adDuration = isPaid ? 5 : 15;
+    const adDuration = isPaid ? 5 : 10;
     adDurationRef.current = adDuration;
     postAdCallback.current = callback;
     setAdCountdown(adDuration);
