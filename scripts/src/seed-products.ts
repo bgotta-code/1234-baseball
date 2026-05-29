@@ -1,6 +1,6 @@
 /**
- * Creates the "1234 Baseball Pro" subscription product in Stripe.
- * Safe to run multiple times — skips creation if the product already exists.
+ * Ensures the "1234 Baseball Pro" one-time purchase product exists in Stripe.
+ * Safe to re-run — skips if already present.
  *
  * Usage: pnpm --filter @workspace/scripts run seed-products
  */
@@ -14,43 +14,50 @@ async function seed() {
     query: "name:'1234 Baseball Pro' AND active:'true'",
   });
 
-  if (existing.data.length > 0) {
-    const prod = existing.data[0];
-    console.log(`Product already exists: ${prod.id}`);
-    const prices = await stripe.prices.list({ product: prod.id, active: true });
-    for (const p of prices.data) {
-      const interval = (p.recurring?.interval ?? 'one_time');
-      const amount = ((p.unit_amount ?? 0) / 100).toFixed(2);
-      console.log(`  Price ${p.id}: $${amount}/${interval}`);
+  for (const product of existing.data) {
+    const prices = await stripe.prices.list({ product: product.id, active: true, type: 'one_time' });
+    if (prices.data.length > 0) {
+      console.log(`Product already has a one-time price — no action needed.`);
+      console.log(`  Product: ${product.id}`);
+      for (const p of prices.data) {
+        const amount = ((p.unit_amount ?? 0) / 100).toFixed(2);
+        console.log(`  Price:   ${p.id}  $${amount} one-time`);
+      }
+      return;
     }
+  }
+
+  // Archive any old subscription prices on existing product
+  if (existing.data.length > 0) {
+    const product = existing.data[0];
+    console.log(`Found product ${product.id} — archiving old subscription prices…`);
+    const oldPrices = await stripe.prices.list({ product: product.id, active: true });
+    for (const p of oldPrices.data) {
+      await stripe.prices.update(p.id, { active: false });
+      console.log(`  Archived price ${p.id}`);
+    }
+    const price = await stripe.prices.create({
+      product: product.id,
+      unit_amount: 299,
+      currency: 'usd',
+    });
+    console.log(`✓ Created one-time price $2.99 — ${price.id}`);
     return;
   }
 
+  // No product at all — create from scratch
   console.log('Creating product…');
   const product = await stripe.products.create({
     name: '1234 Baseball Pro',
-    description: 'Host games up to 9 innings and enjoy shorter ads.',
+    description: 'Unlock 5, 7, and 9-inning games plus shorter ads. Yours forever.',
     metadata: { tier: 'pro' },
   });
-  console.log(`Created product: ${product.id}`);
-
-  const monthly = await stripe.prices.create({
+  const price = await stripe.prices.create({
     product: product.id,
-    unit_amount: 299, // $2.99
+    unit_amount: 299,
     currency: 'usd',
-    recurring: { interval: 'month' },
   });
-  console.log(`Created monthly price: $2.99/month — ${monthly.id}`);
-
-  const yearly = await stripe.prices.create({
-    product: product.id,
-    unit_amount: 1999, // $19.99
-    currency: 'usd',
-    recurring: { interval: 'year' },
-  });
-  console.log(`Created yearly price: $19.99/year — ${yearly.id}`);
-
-  console.log('\n✓ Done. Stripe webhooks will sync these to the database automatically.');
+  console.log(`✓ Created product ${product.id} with one-time price $2.99 — ${price.id}`);
 }
 
 seed().catch((err) => {

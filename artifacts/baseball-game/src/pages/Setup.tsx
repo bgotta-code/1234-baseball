@@ -3,6 +3,7 @@ import { unlockAudio } from '@/lib/audio';
 
 interface SetupProps {
   isPaid: boolean;
+  onUpgradeClick: () => void;
   onStart: (awayName: string, homeName: string, innings: number) => void;
   onCreateOnline: (hostName: string, innings: number, hostRole: 'home' | 'away') => void;
   onJoinOnline: (code: string, teamName: string) => void;
@@ -10,8 +11,7 @@ interface SetupProps {
 
 const INNING_OPTIONS = [3, 5, 7, 9] as const;
 
-export function Setup({ isPaid, onStart, onCreateOnline, onJoinOnline }: SetupProps) {
-  // Auto-open join panel if a ?join=CODE link was tapped
+export function Setup({ isPaid, onUpgradeClick, onStart, onCreateOnline, onJoinOnline }: SetupProps) {
   const [joinCode, setJoinCode] = useState(() => {
     const params = new URLSearchParams(window.location.search);
     return params.get('join')?.toUpperCase() ?? '';
@@ -21,15 +21,11 @@ export function Setup({ isPaid, onStart, onCreateOnline, onJoinOnline }: SetupPr
     return params.get('join') ? 'join' : 'closed';
   });
 
-  // Create game state
   const [createName, setCreateName] = useState('');
   const [hostRole, setHostRole] = useState<'away' | 'home'>('away');
   const [innings, setInnings] = useState(3);
 
-  // Join game state
   const [joinTeamName, setJoinTeamName] = useState('');
-
-  const appUrl = typeof window !== 'undefined' ? window.location.origin : '';
 
   const handleCreateRoom = () => {
     unlockAudio();
@@ -144,18 +140,20 @@ export function Setup({ isPaid, onStart, onCreateOnline, onJoinOnline }: SetupPr
                       return (
                         <button
                           key={n}
-                          onClick={() => { if (!locked) setInnings(n); }}
-                          disabled={locked}
+                          onClick={() => {
+                            if (locked) { onUpgradeClick(); return; }
+                            setInnings(n);
+                          }}
                           className={`relative flex flex-col items-center justify-center py-2.5 rounded-xl border font-black text-[16px] transition-all ${
                             locked
-                              ? 'border-white/10 text-white/20 cursor-not-allowed'
+                              ? 'border-amber-500/30 text-white/35 active:scale-95'
                               : selected
                                 ? 'border-green-500/60 text-white'
                                 : 'border-white/20 text-white/50 active:scale-95'
                           }`}
                           style={{
                             background: locked
-                              ? 'rgba(255,255,255,0.03)'
+                              ? 'rgba(245,158,11,0.08)'
                               : selected
                                 ? 'linear-gradient(135deg,rgba(22,163,74,0.35),rgba(21,128,61,0.35))'
                                 : 'rgba(255,255,255,0.06)',
@@ -163,13 +161,21 @@ export function Setup({ isPaid, onStart, onCreateOnline, onJoinOnline }: SetupPr
                         >
                           {n}
                           <span className={`text-[8px] font-bold uppercase tracking-wide mt-0.5 ${
-                            locked ? 'text-white/20' : selected ? 'text-green-400' : 'text-white/30'
+                            locked ? 'text-amber-400/50' : selected ? 'text-green-400' : 'text-white/30'
                           }`}>inn</span>
-                          {locked && <span className="absolute top-1 right-1 text-[8px] opacity-40">🔒</span>}
+                          {locked && <span className="absolute top-1 right-1 text-[8px]">🔒</span>}
                         </button>
                       );
                     })}
                   </div>
+                  {!isPaid && (
+                    <button
+                      onClick={onUpgradeClick}
+                      className="mt-2 w-full text-[11px] text-amber-400/70 text-center py-1 hover:text-amber-400 transition-colors"
+                    >
+                      🔒 Unlock longer games — Go Pro for $2.99
+                    </button>
+                  )}
                 </div>
 
                 <button

@@ -19,45 +19,32 @@ export class WebhookHandlers {
     if (webhookSecret) {
       event = stripe.webhooks.constructEvent(payload, signature, webhookSecret);
     } else {
-      // No secret configured — parse as-is (dev only; add STRIPE_WEBHOOK_SECRET in production)
       logger.warn('STRIPE_WEBHOOK_SECRET not set — skipping signature verification');
       event = JSON.parse(payload.toString()) as Stripe.Event;
     }
 
     logger.info({ type: event.type }, 'Stripe webhook received');
 
-    switch (event.type) {
-      case 'checkout.session.completed': {
-        const session = event.data.object as Stripe.Checkout.Session;
-        const email = session.customer_details?.email ?? session.customer_email;
-        const customerId = typeof session.customer === 'string' ? session.customer : session.customer?.id;
-        const subscriptionId = typeof session.subscription === 'string'
-          ? session.subscription
-          : session.subscription?.id;
-        if (email && subscriptionId) {
-          await storage.upsertUser(email, {
-            stripeCustomerId: customerId ?? undefined,
-            stripeSubscriptionId: subscriptionId,
-          });
-          logger.info({ email, subscriptionId }, 'User upgraded to Pro');
-        }
-        break;
+    if (event.type === 'checkout.session.completed') {
+      const session = event.data.object as Stripe.Checkout.Session;
+
+      // Only handle one-time payments (not subscriptions)
+      if (session.mode !== 'payment') return;
+
+      const licenseKey = session.metadata?.['licenseKey'];
+      const email = session.metadata?.['email'] ?? session.customer_details?.email;
+
+      if (!licenseKey || !email) {
+        logger.warn({ sessionId: session.id }, 'Missing licenseKey or email in session metadata');
+        return;
       }
 
-      case 'customer.subscription.updated':
-      case 'customer.subscription.deleted': {
-        const sub = event.data.object as Stripe.Subscription;
-        const customerId = typeof sub.customer === 'string' ? sub.customer : sub.customer.id;
-        const user = await storage.getUserByStripeCustomerId(customerId);
-        if (user) {
-          await storage.upsertUser(user.email, { stripeSubscriptionId: sub.id });
-          logger.info({ email: user.email, status: sub.status }, 'Subscription updated');
-        }
-        break;
+      // Idempotent: create the license if it doesn't exist yet
+      const existing = await storage.getLicenseBySessionId(session.id);
+      if (!existing) {
+        await storage.createLicense({ key: licenseKey, email, stripeSessionId: session.id });
+        logger.info({ email, licenseKey }, 'License created');
       }
-
-      default:
-        logger.debug({ type: event.type }, 'Unhandled Stripe event');
     }
   }
 }
