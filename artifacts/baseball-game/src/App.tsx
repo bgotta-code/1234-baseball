@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, Component, ReactNode } from 'react';
 import { Setup } from '@/pages/Setup';
 import { Game } from '@/pages/Game';
 import { OnlineLobby } from '@/pages/OnlineLobby';
@@ -7,6 +7,49 @@ import { DesktopGate } from '@/components/DesktopGate';
 import { UpgradeModal } from '@/components/UpgradeModal';
 import { usePro } from '@/hooks/usePro';
 import { generateRoomCode, RoomSetup } from '@/lib/roomLogic';
+
+class ErrorBoundary extends Component<{ children: ReactNode }, { error: Error | null }> {
+  constructor(props: { children: ReactNode }) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error: Error) {
+    return { error };
+  }
+  render() {
+    const { error } = this.state;
+    if (error) {
+      return (
+        <div
+          className="min-h-screen flex items-center justify-center p-6"
+          style={{ background: 'linear-gradient(170deg,#0c2c0c 0%,#1e4a1e 60%,#2a5a2a 100%)' }}
+        >
+          <div className="w-full max-w-sm flex flex-col gap-4 text-center">
+            <div className="text-4xl">💥</div>
+            <h2 className="text-white font-black text-lg">Something crashed</h2>
+            <div
+              className="rounded-xl p-4 text-left border border-red-500/30"
+              style={{ background: 'rgba(239,68,68,0.1)' }}
+            >
+              <p className="text-red-300 text-[11px] font-mono break-all whitespace-pre-wrap">
+                {error.name}: {error.message}
+                {error.stack ? `\n\n${error.stack}` : ''}
+              </p>
+            </div>
+            <button
+              onClick={() => this.setState({ error: null })}
+              className="w-full py-3 rounded-xl font-bold text-white text-[14px]"
+              style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)' }}
+            >
+              Try again
+            </button>
+          </div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 type Screen =
   | { type: 'setup' }
@@ -96,9 +139,11 @@ function AppContent() {
 
 function App() {
   return (
-    <DesktopGate>
-      <AppContent />
-    </DesktopGate>
+    <ErrorBoundary>
+      <DesktopGate>
+        <AppContent />
+      </DesktopGate>
+    </ErrorBoundary>
   );
 }
 
