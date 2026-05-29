@@ -277,20 +277,27 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
 
       if (atBatResult.type === 'side-retired') {
         const { newState, gameOver } = nextHalf(atBatResult.newState, { innings: setup.innings, isPaid });
-        const doWrite = async () => {
+        if (gameOver) {
           setSwitching(true);
           await writeResolution(
-            roomCode, newState, gameOver, atBatResult, displayMsg,
+            roomCode, newState, true, atBatResult, displayMsg,
             atBat.seq + 1, gameState.half, false,
             atBat.pitcherChoice!, atBat.batterChoice!, prevBases,
           );
           switchTimerRef.current = setTimeout(() => setSwitching(false), 2000);
           resolving.current = false;
-        };
-        if (gameOver) {
-          await doWrite();
         } else {
-          startAd(doWrite);
+          // Write to Firebase immediately so guest syncs in parallel, then show ad locally
+          await writeResolution(
+            roomCode, newState, false, atBatResult, displayMsg,
+            atBat.seq + 1, gameState.half, false,
+            atBat.pitcherChoice!, atBat.batterChoice!, prevBases,
+          );
+          resolving.current = false;
+          startAd(() => {
+            setSwitching(true);
+            switchTimerRef.current = setTimeout(() => setSwitching(false), 2000);
+          });
         }
       } else if (walkoff) {
         const { newState } = nextHalf(atBatResult.newState, { innings: setup.innings, isPaid });
