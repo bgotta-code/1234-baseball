@@ -352,8 +352,9 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
 
   const handleSelectNumber = useCallback((n: number) => {
     if (localResult || switching) return;
+    if (n === 3 && (roomData?.gameState?.outs ?? 0) === 2) return;
     setMyChoice(n);
-  }, [localResult, switching]);
+  }, [localResult, switching, roomData?.gameState?.outs]);
 
   const handleSubmit = useCallback(async () => {
     if (!myChoice || !roomData?.gameState) return;
@@ -565,7 +566,7 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
               <li>🏏 Batter guesses which number was chosen</li>
               <li>✅ Correct guess = 1 Single · 2 Double · 3 Triple · 4 HR</li>
               <li>❌ Incorrect guess = Out</li>
-              <li>🏃 2 outs = runners advance 1 extra base</li>
+              <li>🏃 2 outs = runners advance 1 extra base · no triples</li>
               <li>🔄 3 outs = change sides</li>
               <li className="text-white/45 text-[12px] pt-1 border-t border-white/10">
                 🆓 Free version = 3-inning game + 1 extra inning if needed
@@ -686,30 +687,38 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
           }`}>{actionLabel}</p>
 
           <div className="grid grid-cols-4 gap-2 mb-2.5">
-            {[1, 2, 3, 4].map(n => (
-              <button
-                key={n}
-                onClick={() => canPick && handleSelectNumber(n)}
-                disabled={!canPick}
-                className={`h-14 rounded-xl font-black text-2xl transition-all border ${
-                  !canPick
-                    ? 'border-white/10 text-white/20 cursor-not-allowed'
-                    : myChoice === n
-                      ? 'border-blue-400 text-white shadow-lg active:scale-90'
-                      : 'border-white/20 text-white/75 active:scale-90 active:bg-white/15'
-                }`}
-                style={{
-                  background: !canPick
-                    ? 'rgba(255,255,255,0.03)'
-                    : myChoice === n
-                      ? 'linear-gradient(135deg,#2563eb,#1d4ed8)'
-                      : 'rgba(255,255,255,0.07)',
-                  boxShadow: myChoice === n ? '0 0 20px rgba(37,99,235,0.4)' : 'none',
-                }}
-              >
-                {n}
-              </button>
-            ))}
+            {[1, 2, 3, 4].map(n => {
+              const twoOutLocked = n === 3 && gameState.outs === 2;
+              const effectivelyDisabled = !canPick || twoOutLocked;
+              return (
+                <button
+                  key={n}
+                  onClick={() => canPick && handleSelectNumber(n)}
+                  disabled={effectivelyDisabled}
+                  className={`h-14 rounded-xl font-black text-2xl transition-all border ${
+                    twoOutLocked
+                      ? 'border-white/10 text-white/15 cursor-not-allowed line-through'
+                      : !canPick
+                        ? 'border-white/10 text-white/20 cursor-not-allowed'
+                        : myChoice === n
+                          ? 'border-blue-400 text-white shadow-lg active:scale-90'
+                          : 'border-white/20 text-white/75 active:scale-90 active:bg-white/15'
+                  }`}
+                  style={{
+                    background: twoOutLocked
+                      ? 'rgba(255,255,255,0.02)'
+                      : !canPick
+                        ? 'rgba(255,255,255,0.03)'
+                        : myChoice === n
+                          ? 'linear-gradient(135deg,#2563eb,#1d4ed8)'
+                          : 'rgba(255,255,255,0.07)',
+                    boxShadow: myChoice === n ? '0 0 20px rgba(37,99,235,0.4)' : 'none',
+                  }}
+                >
+                  {n}
+                </button>
+              );
+            })}
           </div>
 
           <button
