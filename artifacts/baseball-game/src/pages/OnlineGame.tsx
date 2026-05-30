@@ -476,7 +476,7 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
           <div className="flex gap-3">
             {[setup.awayTeam, setup.homeTeam].map((team, i) => {
               const score = gameState.scores[i];
-              const win = !tied && ((i === 0 && hostWins) || (i === 1 && !hostWins));
+              const win = !tied && ((i === 0 && !hostWins) || (i === 1 && hostWins));
               return (
                 <div key={team} className={`flex-1 rounded-2xl p-4 text-center border ${win ? 'border-yellow-400/50' : 'border-white/15'}`}
                   style={{ background: win ? 'rgba(234,179,8,0.15)' : 'rgba(0,0,0,0.35)' }}>
