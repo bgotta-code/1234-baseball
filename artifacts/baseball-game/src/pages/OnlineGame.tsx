@@ -533,8 +533,8 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
     : 'linear-gradient(135deg,#16a34a,#15803d)';
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-6"
-      style={{ background: bg }}>
+    <div className="min-h-[100dvh] flex items-center justify-center px-4 py-6"
+      style={{ background: bg, paddingBottom: 'max(env(safe-area-inset-bottom), 24px)' }}>
 
       {/* ── Timeout banner ───────────────────────────────────────────────── */}
       {opponentTimeout && !opponentDisconnected && (

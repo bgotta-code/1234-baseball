@@ -279,9 +279,6 @@ export function Game({ awayTeam, homeTeam, innings, isPaid, onNewGame }: GamePro
   const actionLabel = isPitchPhase
     ? `${battingTeamName} Pitcher — choose your pitch`
     : `${battingTeamName} Batter — guess the pitch`;
-  const statusMsg = isPitchPhase
-    ? `${battingTeamName} pitcher — choose your pitch`
-    : '📱 Hand the device to the batter';
 
   const isExtraInning = state.inning > innings;
   const inningLabel = isExtraInning
@@ -381,8 +378,8 @@ export function Game({ awayTeam, homeTeam, innings, isPaid, onNewGame }: GamePro
 
   // ── MAIN GAME SCREEN ─────────────────────────────────────────
   return (
-    <div className="min-h-screen flex justify-center py-3 px-3"
-      style={{ background: 'linear-gradient(170deg,#0c2c0c 0%,#1e4a1e 60%,#2a5a2a 100%)' }}>
+    <div className="min-h-[100dvh] flex justify-center py-3 px-3"
+      style={{ background: 'linear-gradient(170deg,#0c2c0c 0%,#1e4a1e 60%,#2a5a2a 100%)', paddingBottom: 'max(env(safe-area-inset-bottom), 20px)' }}>
       <div className="w-full max-w-sm flex flex-col gap-2.5">
 
         {/* Header */}
@@ -486,9 +483,6 @@ export function Game({ awayTeam, homeTeam, innings, isPaid, onNewGame }: GamePro
             Pitcher threw a {reveal.pitcherNum}
           </div>
         )}
-
-        {/* Status */}
-        <p className="text-[11px] text-white/40 text-center min-h-[15px]">{statusMsg}</p>
 
         {/* Action panel */}
         <div className="rounded-2xl border border-white/15 p-3.5"
