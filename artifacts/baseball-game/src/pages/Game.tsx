@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { Stadium } from '@/components/Stadium';
 import { LineScore } from '@/components/LineScore';
 import { AdScreen } from '@/components/AdScreen';
+import { useRandomAd } from '@/lib/useAds';
 import {
   unlockAudio,
   playSwoosh,
@@ -50,6 +51,7 @@ export function Game({ awayTeam, homeTeam, innings, isPaid, onNewGame }: GamePro
   const [selectedNum, setSelectedNum] = useState<number | null>(null);
   const [muted, setMuted] = useState(isMuted);
   const [adCountdown, setAdCountdown] = useState(15);
+  const currentAd = useRandomAd();
   const [animRunners, setAnimRunners] = useState<Array<{ id: string; pos: number; maxPos: number }> | null>(null);
   const [homeFlashes, setHomeFlashes] = useState<Array<{ id: string; delay: number }>>([]);
   const [ballPos, setBallPos] = useState<{ x: number; y: number } | null>(null);
@@ -287,7 +289,7 @@ export function Game({ awayTeam, homeTeam, innings, isPaid, onNewGame }: GamePro
 
   // ── AD SCREEN ────────────────────────────────────────────────
   if (screen === 'ad') {
-    return <AdScreen countdown={adCountdown} duration={adDurationRef.current} />;
+    return <AdScreen countdown={adCountdown} duration={adDurationRef.current} ad={currentAd} />;
   }
 
   // ── GAME OVER SCREEN ─────────────────────────────────────────

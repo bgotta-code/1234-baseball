@@ -10,6 +10,7 @@ import { playHitSound, playOutSound, playSwoosh, playScoreRipple, isMuted, toggl
 import { LineScore } from '@/components/LineScore';
 import { Stadium } from '@/components/Stadium';
 import { AdScreen } from '@/components/AdScreen';
+import { useRandomAd } from '@/lib/useAds';
 
 interface OnlineGameProps {
   roomCode: string;
@@ -73,6 +74,7 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
   const [showAd, setShowAd] = useState(false);
   const [postAd, setPostAd] = useState(false);
   const [adCountdown, setAdCountdown] = useState(0);
+  const currentAd = useRandomAd();
   const [animRunners, setAnimRunners] = useState<Array<{ id: string; pos: number; maxPos: number }> | null>(null);
   const [homeFlashes, setHomeFlashes] = useState<Array<{ id: string; delay: number }>>([]);
   const [ballPos, setBallPos] = useState<{ x: number; y: number } | null>(null);
@@ -414,7 +416,7 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
 
   // ── Ad screen ─────────────────────────────────────────────────────────────
   if (showAd) {
-    return <AdScreen countdown={adCountdown} duration={adDurationRef.current} />;
+    return <AdScreen countdown={adCountdown} duration={adDurationRef.current} ad={currentAd} />;
   }
 
   // ── Disconnection ──────────────────────────────────────────────────────────
