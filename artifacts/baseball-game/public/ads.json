@@ -1,7 +1,7 @@
 [
   {
     "type": "video",
-    "src": "/Batting_Gloves_Video1.mp4",
+    "src": "https://cdn.jsdelivr.net/gh/bgotta-code/1234-baseball@main/artifacts/baseball-game/public/Batting_Gloves_Video1.mp4",
     "href": "https://upstartsports.com",
     "ctaLabel": "Shop Now"
   }
