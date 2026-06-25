@@ -1,4 +1,4 @@
-app = "REPLACE_WITH_APP_NAME"
+app = "1234-baseball"
 primary_region = "ewr"
 
 [build]
