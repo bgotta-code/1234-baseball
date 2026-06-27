@@ -1,29 +1,89 @@
 // ── Audio context singleton ──────────────────────────────────────────────────
 let audioCtx: AudioContext | null = null;
-let audioUnlocked = false;
 let _muted = false;
 
 export function isMuted() { return _muted; }
 export function toggleMute() { _muted = !_muted; return _muted; }
 
-export function unlockAudio() {
+// Close the suspended context and open a fresh one synchronously.
+// iOS gives a running context immediately when called inside a user gesture.
+// MUST only be called from within a real user-gesture event handler.
+function recreateCtx() {
   try {
-    if (!audioCtx) audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-    if (audioCtx.state === 'suspended') {
-      void audioCtx.resume();
-      const buf = audioCtx.createBuffer(1, 1, audioCtx.sampleRate);
-      const src = audioCtx.createBufferSource();
-      src.buffer = buf; src.connect(audioCtx.destination); src.start(0);
-      audioUnlocked = false; // try again on the next gesture until context is running
-    } else {
-      audioUnlocked = true;
-    }
+    if (audioCtx && audioCtx.state !== 'closed') void audioCtx.close();
+    audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
   } catch (_) {}
 }
 
+// iOS Safari requires AudioContext to be both CREATED and USED (audio scheduled)
+// within the same user-gesture call stack. Playing a 1-sample silent buffer
+// satisfies the "used" requirement so the context stays running for subsequent calls.
+function playSilentBuffer(ctx: AudioContext) {
+  try {
+    const buf = ctx.createBuffer(1, 1, ctx.sampleRate);
+    const src = ctx.createBufferSource();
+    src.buffer = buf;
+    src.connect(ctx.destination);
+    src.start(0);
+  } catch (_) {}
+}
+
+// Attach to touchend + click in CAPTURE phase so our handler fires before the
+// element's own handler — the context is already running by the time any
+// sound-playing code executes. touchend is more reliably treated as a user
+// gesture for audio by iOS WebKit than touchstart.
+if (typeof document !== 'undefined') {
+  const handleGesture = () => {
+    if (!audioCtx || audioCtx.state === 'closed') {
+      try {
+        audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+        // Must use the context in the same gesture call stack on iOS Safari
+        playSilentBuffer(audioCtx);
+      } catch (_) {}
+    } else if (audioCtx.state === 'suspended') {
+      recreateCtx();
+      playSilentBuffer(audioCtx!);
+    }
+  };
+  document.addEventListener('touchstart', handleGesture, { passive: true, capture: true });
+  document.addEventListener('touchend', handleGesture, { passive: true, capture: true });
+  document.addEventListener('click', handleGesture, { capture: true });
+  // visibilitychange is NOT a user gesture on iOS — resume() only, no recreate.
+  document.addEventListener('visibilitychange', () => {
+    if (document.visibilityState === 'visible' && audioCtx?.state === 'suspended') {
+      void audioCtx.resume();
+    }
+  });
+}
+
+// Must be called directly from a user-gesture handler (e.g. button onClick).
+// Creates the AudioContext and plays a silent buffer so iOS Safari marks the
+// context as unlocked for the entire session.
+export function unlockAudio() {
+  if (!audioCtx || audioCtx.state === 'closed') {
+    try {
+      audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+      playSilentBuffer(audioCtx);
+    } catch (_) {}
+    return;
+  }
+  if (audioCtx.state === 'suspended') {
+    recreateCtx();
+    playSilentBuffer(audioCtx!);
+  } else {
+    // Already running — play a silent buffer anyway to reinforce unlock on iOS
+    playSilentBuffer(audioCtx);
+  }
+}
+
 function getCtx(): AudioContext {
-  if (!audioCtx) audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-  if (audioCtx.state === 'suspended') audioCtx.resume();
+  if (!audioCtx || audioCtx.state === 'closed') {
+    audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
+  } else if (audioCtx.state === 'suspended') {
+    // handleGesture (capture) should have already recreated the context.
+    // This is a last-resort fallback for sounds triggered outside a gesture.
+    void audioCtx.resume();
+  }
   return audioCtx;
 }
 
