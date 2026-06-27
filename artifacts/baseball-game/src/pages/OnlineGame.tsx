@@ -67,13 +67,13 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
   const [myChoice, setMyChoice] = useState<number | null>(null);
   const [localResult, setLocalResult] = useState<ResultInfo>(null);
   const [reveal, setReveal] = useState<{ p: number; b: number } | null>(null);
+  const [revealEpoch, setRevealEpoch] = useState(0);
   const [switching, setSwitching] = useState(false);
   const [muted, setMuted] = useState(isMuted);
   const [confirmLeave, setConfirmLeave] = useState(false);
   const [showRules, setShowRules] = useState(true);
   const [showAd, setShowAd] = useState(false);
   const [postAd, setPostAd] = useState(false);
-  const [adCountdown, setAdCountdown] = useState(0);
   const currentAd = useRandomAd();
   const [animRunners, setAnimRunners] = useState<Array<{ id: string; pos: number; maxPos: number }> | null>(null);
   const [homeFlashes, setHomeFlashes] = useState<Array<{ id: string; delay: number }>>([]);
@@ -88,8 +88,6 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
   const resultTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const switchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const leaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const adTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const adDurationRef = useRef(15);
   const postAdCallback = useRef<(() => void) | null>(null);
   const animTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
   const ballTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -175,24 +173,9 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
 
   // ── Ad display ─────────────────────────────────────────────────────────────
   const startAd = useCallback((callback: () => void) => {
-    const adDuration = isPaid ? 5 : 10;
-    adDurationRef.current = adDuration;
     postAdCallback.current = callback;
-    setAdCountdown(adDuration);
     setShowAd(true);
-    if (adTimerRef.current) clearInterval(adTimerRef.current);
-    let count = adDuration;
-    adTimerRef.current = setInterval(() => {
-      count--;
-      setAdCountdown(count);
-      if (count <= 0) {
-        if (adTimerRef.current) clearInterval(adTimerRef.current);
-        setShowAd(false);
-        setPostAd(true);
-        postAdCallback.current?.();
-      }
-    }, 1000);
-  }, [isPaid]);
+  }, []);
 
   // ── Runner + ball animation ────────────────────────────────────────────────
   const startRunnerAnimation = useCallback((
@@ -264,6 +247,7 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
     const walkoff = isWalkoffHit(atBatResult, gameState, setup.innings);
     const displayMsg = computeDisplayMsg(atBatResult, gameState, setup.innings, walkoff);
 
+    setRevealEpoch(e => e + 1);
     setReveal({ p: atBat.pitcherChoice, b: atBat.batterChoice });
     setLocalResult({ message: displayMsg, type: atBatResult.type });
 
@@ -335,6 +319,7 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
     if (la.seq <= lastShownSeq.current) return;
     lastShownSeq.current = la.seq;
 
+    setRevealEpoch(e => e + 1);
     setReveal({ p: la.pitcherNum, b: la.batterNum });
     setLocalResult({ message: la.message, type: la.type });
 
@@ -416,7 +401,17 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
 
   // ── Ad screen ─────────────────────────────────────────────────────────────
   if (showAd) {
-    return <AdScreen countdown={adCountdown} duration={adDurationRef.current} ad={currentAd} />;
+    return (
+      <AdScreen
+        minDuration={isPaid ? 5 : 10}
+        ad={currentAd}
+        onDone={() => {
+          setShowAd(false);
+          setPostAd(true);
+          postAdCallback.current?.();
+        }}
+      />
+    );
   }
 
   // ── Disconnection ──────────────────────────────────────────────────────────
@@ -440,13 +435,16 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
 
   const { gameState } = roomData;
   const hostRole = setup.hostRole ?? 'away';
+  // Use live Firebase team names to avoid stale prop values from before guest joined
+  const awayTeam = roomData.setup.awayTeam || setup.awayTeam;
+  const homeTeam = roomData.setup.homeTeam || setup.homeTeam;
   // Away team pitches in the bottom (half=1), home team pitches in the top (half=0)
   const isPitcher = hostRole === 'home'
     ? (role === 'host' && gameState.half === 0) || (role === 'guest' && gameState.half === 1)
     : (role === 'host' && gameState.half === 1) || (role === 'guest' && gameState.half === 0);
   const myTeamName = role === 'host'
-    ? (hostRole === 'home' ? setup.homeTeam : setup.awayTeam)
-    : (hostRole === 'home' ? setup.awayTeam : setup.homeTeam);
+    ? (hostRole === 'home' ? homeTeam : awayTeam)
+    : (hostRole === 'home' ? awayTeam : homeTeam);
   const isExtraInning = gameState.inning > setup.innings;
   const inningLabel = isExtraInning
     ? `Extra Inning — ${gameState.half === 0 ? 'Top' : 'Bottom'}`
@@ -476,7 +474,7 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
           </div>
 
           <div className="flex gap-3">
-            {[setup.awayTeam, setup.homeTeam].map((team, i) => {
+            {[roomData.setup.awayTeam || setup.awayTeam, roomData.setup.homeTeam || setup.homeTeam].map((team, i) => {
               const score = gameState.scores[i];
               const win = !tied && ((i === 0 && !hostWins) || (i === 1 && hostWins));
               return (
@@ -498,8 +496,8 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
               scores={gameState.scores}
               currentInning={gameState.inning}
               currentHalf={gameState.half}
-              awayTeam={setup.awayTeam}
-              homeTeam={setup.homeTeam}
+              awayTeam={awayTeam}
+              homeTeam={homeTeam}
               isGameOver
             />
           </div>
@@ -554,7 +552,7 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
         <div className="fixed inset-0 z-50 flex items-center justify-center p-5" style={{ background: 'rgba(0,0,0,0.88)' }}>
           <div className="w-full max-w-sm rounded-2xl border border-white/20 p-6 relative" style={{ background: 'rgba(8,24,8,0.98)' }}>
             <button
-              onClick={() => setShowRules(false)}
+              onClick={() => { unlockAudio(); setShowRules(false); }}
               className="absolute top-4 right-4 text-white/40 hover:text-white/80 text-2xl font-black leading-none transition-colors"
               aria-label="Close"
             >
@@ -576,7 +574,7 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
               </li>
             </ul>
             <button
-              onClick={() => setShowRules(false)}
+              onClick={() => { unlockAudio(); setShowRules(false); }}
               className="w-full py-3.5 rounded-xl font-black text-[16px] text-white transition-all active:scale-95"
               style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', boxShadow: '0 4px 16px rgba(22,163,74,0.3)' }}
             >
@@ -607,7 +605,7 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
         <div className="rounded-2xl border border-white/15 px-4 py-3 flex items-center gap-3"
           style={{ background: 'rgba(0,0,0,0.42)' }}>
           <div className="flex-1 text-center">
-            <p className="text-[10px] text-white/40 truncate">{setup.awayTeam}</p>
+            <p className="text-[10px] text-white/40 truncate">{awayTeam}</p>
             <p className="text-3xl font-black text-white">{gameState.scores[0]}</p>
           </div>
           <div className="text-center px-2">
@@ -619,7 +617,7 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
             </div>
           </div>
           <div className="flex-1 text-center">
-            <p className="text-[10px] text-white/40 truncate">{setup.homeTeam}</p>
+            <p className="text-[10px] text-white/40 truncate">{homeTeam}</p>
             <p className="text-3xl font-black text-white">{gameState.scores[1]}</p>
           </div>
         </div>
@@ -630,8 +628,8 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
           <Stadium
             bases={gameState.bases}
             phase={gameState.phase}
-            awayTeam={setup.awayTeam}
-            homeTeam={setup.homeTeam}
+            awayTeam={awayTeam}
+            homeTeam={homeTeam}
             battingTeam={gameState.half as 0 | 1}
             runners={animRunners ?? undefined}
             homeFlashes={homeFlashes}
@@ -649,8 +647,8 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
             scores={gameState.scores}
             currentInning={gameState.inning}
             currentHalf={gameState.half}
-            awayTeam={setup.awayTeam}
-            homeTeam={setup.homeTeam}
+            awayTeam={awayTeam}
+            homeTeam={homeTeam}
           />
         </div>
 
@@ -665,9 +663,9 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
 
         {/* Reveal */}
         {reveal && (
-          <div className="rounded-xl px-4 py-2 text-center text-[13px] font-bold text-amber-300 border border-amber-400/35"
-            style={{ background: 'rgba(251,191,36,0.12)' }}>
-            Pitcher: {reveal.p} · Batter: {reveal.b}
+          <div key={revealEpoch} className="reveal-flash rounded-xl px-4 py-3 text-center text-[15px] font-black text-amber-300 border border-amber-400/50"
+            style={{ background: 'rgba(251,191,36,0.18)' }}>
+            Pitcher threw {reveal.p} · Batter guessed {reveal.b}
           </div>
         )}
 
