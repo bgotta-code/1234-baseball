@@ -76,15 +76,21 @@ export function unlockAudio() {
   }
 }
 
-function getCtx(): AudioContext {
+// Returns the context and a safe scheduling base time.
+// When the context just needed resuming, we schedule sounds 150 ms ahead so
+// they don't silently miss the narrow window while the context is still waking
+// up. WebAudio resumes currentTime from the frozen value, so t + 0.15 reliably
+// plays ~150 ms after resume no matter how long the context was suspended.
+function getCtx(): [AudioContext, number] {
   if (!audioCtx || audioCtx.state === 'closed') {
     audioCtx = new (window.AudioContext || (window as any).webkitAudioContext)();
-  } else if (audioCtx.state === 'suspended') {
-    // handleGesture (capture) should have already recreated the context.
-    // This is a last-resort fallback for sounds triggered outside a gesture.
-    void audioCtx.resume();
+    return [audioCtx, audioCtx.currentTime];
   }
-  return audioCtx;
+  if (audioCtx.state === 'suspended') {
+    audioCtx.resume().catch(() => {});
+    return [audioCtx, audioCtx.currentTime + 0.15];
+  }
+  return [audioCtx, audioCtx.currentTime];
 }
 
 // ── Short noise buffer (utility) ─────────────────────────────────────────────
@@ -199,7 +205,7 @@ function makeCrowdVoices(
 export function playCrowdCheer() {
   if (_muted) return;
   try {
-    const ctx = getCtx(), t = ctx.currentTime;
+    const [ctx, t] = getCtx();
     const dur = 2.0;
     const v = makeCrowdVoices(ctx, dur, t, 'cheer', 26);
     reverb(ctx, v, 0.42).connect(ctx.destination);
@@ -214,7 +220,7 @@ export function playCrowdCheer() {
 export function playCrowdRoar(dist: number, delay: number) {
   if (_muted) return;
   try {
-    const ctx = getCtx(), t = ctx.currentTime + delay;
+    const [ctx, t0] = getCtx(); const t = t0 + delay;
     // Each step noticeably louder, longer, and denser
     const dur    = 1.8 + dist * 0.65;          // 2.45s → 4.4s
     const count  = 18 + dist * 9;              // 27 → 54 voices
@@ -233,7 +239,7 @@ export function playCrowdRoar(dist: number, delay: number) {
 export function playCrowdGroan(intensity = 1) {
   if (_muted) return;
   try {
-    const ctx = getCtx(), t = ctx.currentTime;
+    const [ctx, t] = getCtx();
     const dur   = 1.4 + intensity * 0.35;       // 1.75s → 2.8s
     const count = 16 + intensity * 6;            // 22 → 40 voices
     const peak  = 0.034 + intensity * 0.016;     // 0.050 → 0.098
@@ -251,7 +257,7 @@ export function playCrowdGroan(intensity = 1) {
 export function playSwoosh() {
   if (_muted) return;
   try {
-    const ctx = getCtx(), t = ctx.currentTime;
+    const [ctx, t] = getCtx();
 
     // Descending "whomp" tone
     const osc = ctx.createOscillator();
@@ -283,7 +289,7 @@ export function playSwoosh() {
 export function playBatCrack(intensity: number) {
   if (_muted) return;
   try {
-    const ctx = getCtx(), t = ctx.currentTime;
+    const [ctx, t] = getCtx();
 
     // 1. Sharp crack impulse — very short noise burst, HIGH frequencies
     const imp = noiseBuf(ctx, 0.004);
@@ -325,7 +331,7 @@ export function playBatCrack(intensity: number) {
 export function playGloveThud() {
   if (_muted) return;
   try {
-    const ctx = getCtx(), t = ctx.currentTime;
+    const [ctx, t] = getCtx();
 
     const osc = ctx.createOscillator(), og = ctx.createGain();
     osc.type = 'sine';
@@ -354,7 +360,7 @@ export function playGloveThud() {
 export function playHitStinger(dist: number) {
   if (_muted || dist === 4) return; // HR keeps its own fanfare
   try {
-    const ctx = getCtx();
+    const [ctx, baseT] = getCtx();
     // [freq Hz, note duration s] — sequences scale with hit power
     const seqs: [number, number][][] = [
       [],
@@ -365,7 +371,7 @@ export function playHitStinger(dist: number) {
     const seq = seqs[Math.min(dist, 3)];
     let offset = 0.06; // slight gap after bat crack
     seq.forEach(([freq, dur]) => {
-      const t = ctx.currentTime + offset;
+      const t = baseT + offset;
       // Two slightly-detuned sawtooth oscillators for a warm "stadium organ" brass texture
       [1, 1.006].forEach(detune => {
         const osc = ctx.createOscillator();
@@ -391,9 +397,9 @@ export function playHitStinger(dist: number) {
 export function playHomeRunFanfare() {
   if (_muted) return;
   try {
-    const ctx = getCtx();
+    const [ctx, baseT] = getCtx();
     [523, 659, 784, 1047, 1319].forEach((freq, i) => {
-      const t = ctx.currentTime + i * 0.13;
+      const t = baseT + i * 0.13;
       const osc = ctx.createOscillator(), g = ctx.createGain();
       osc.type = 'square'; osc.frequency.value = freq;
       g.gain.setValueAtTime(0.12, t);
@@ -408,7 +414,7 @@ export function playHomeRunFanfare() {
 export function playScoreRipple() {
   if (_muted) return;
   try {
-    const ctx = getCtx(), t = ctx.currentTime;
+    const [ctx, t] = getCtx();
     const dur = 1.3;
     const v = makeCrowdVoices(ctx, dur, t, 'cheer', 22);
     reverb(ctx, v, 0.52).connect(ctx.destination);
@@ -423,7 +429,7 @@ export function playScoreRipple() {
 export function playStartCheer() {
   if (_muted) return;
   try {
-    const ctx = getCtx(), t = ctx.currentTime;
+    const [ctx, t] = getCtx();
     const dur = 3.8;
     const v = makeCrowdVoices(ctx, dur, t, 'cheer', 50);
     reverb(ctx, v, 0.55).connect(ctx.destination);
@@ -464,7 +470,7 @@ export function playOutSound(half: number) {
 export function playPlayBallJingle() {
   if (_muted) return;
   try {
-    const ctx = getCtx();
+    const [ctx, baseT] = getCtx();
     // "Take  me   out   to   the  ball  game"   (G major, stadium organ)
     const notes: [number, number, number][] = [
       [587, 0.00, 0.20],  // D5  "Take"
@@ -479,7 +485,7 @@ export function playPlayBallJingle() {
     const bus = ctx.createGain(); bus.gain.value = 1.0;
     reverb(ctx, bus, 0.45).connect(ctx.destination);
     notes.forEach(([freq, offset, dur]) => {
-      const t = ctx.currentTime + offset;
+      const t = baseT + offset;
       [1, 1.006].forEach(detune => {
         const osc = ctx.createOscillator();
         const filt = ctx.createBiquadFilter();
