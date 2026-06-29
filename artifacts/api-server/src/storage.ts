@@ -23,6 +23,15 @@ export class Storage {
     return license ?? null;
   }
 
+  async getLicenseByEmail(email: string) {
+    const [license] = await db
+      .select()
+      .from(licensesTable)
+      .where(eq(licensesTable.email, email.trim().toLowerCase()))
+      .limit(1);
+    return license ?? null;
+  }
+
   async getLicenseBySessionId(sessionId: string) {
     const [license] = await db
       .select()
