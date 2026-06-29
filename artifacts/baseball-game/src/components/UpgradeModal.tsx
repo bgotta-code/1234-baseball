@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { createCheckoutSession } from '@/lib/stripeApi';
+import { createCheckoutSession, restoreLicenseByEmail } from '@/lib/stripeApi';
 
 interface UpgradeModalProps {
   onClose: () => void;
@@ -19,11 +19,17 @@ export function UpgradeModal({ onClose, onActivate }: UpgradeModalProps) {
   const [buying, setBuying] = useState(false);
   const [buyError, setBuyError] = useState('');
 
-  // Redeem tab
+  // Redeem tab — key entry mode
   const [key, setKey] = useState('');
   const [redeeming, setRedeeming] = useState(false);
   const [redeemError, setRedeemError] = useState('');
   const [redeemOk, setRedeemOk] = useState(false);
+
+  // Redeem tab — email restore mode
+  const [restoreMode, setRestoreMode] = useState(false);
+  const [restoreEmail, setRestoreEmail] = useState('');
+  const [restoring, setRestoring] = useState(false);
+  const [restoreError, setRestoreError] = useState('');
 
   const handleBuy = async () => {
     if (!email.trim()) { setBuyError('Enter your email to receive the license key.'); return; }
@@ -54,10 +60,41 @@ export function UpgradeModal({ onClose, onActivate }: UpgradeModalProps) {
     }
   };
 
+  const handleRestore = async () => {
+    if (!restoreEmail.trim() || !restoreEmail.includes('@')) {
+      setRestoreError('Enter the email you used when you paid.');
+      return;
+    }
+    setRestoring(true);
+    setRestoreError('');
+    const result = await restoreLicenseByEmail(restoreEmail.trim());
+    if ('error' in result) {
+      setRestoring(false);
+      setRestoreError(result.error);
+      return;
+    }
+    // Activate the recovered key
+    const activation = await onActivate(result.key);
+    setRestoring(false);
+    if (activation.success) {
+      setRedeemOk(true);
+      setTimeout(onClose, 1400);
+    } else {
+      setRestoreError(activation.error ?? 'Could not activate the recovered key.');
+    }
+  };
+
   const formatKey = (raw: string) => {
     const clean = raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
     const parts = [clean.slice(0, 4), clean.slice(4, 8), clean.slice(8, 12)].filter(Boolean);
     return parts.join('-');
+  };
+
+  const switchToRedeem = () => {
+    setTab('redeem');
+    setRestoreMode(false);
+    setRedeemError('');
+    setRestoreError('');
   };
 
   return (
@@ -100,7 +137,7 @@ export function UpgradeModal({ onClose, onActivate }: UpgradeModalProps) {
           {(['buy', 'redeem'] as const).map((t) => (
             <button
               key={t}
-              onClick={() => setTab(t)}
+              onClick={() => { setTab(t); setRestoreMode(false); setRedeemError(''); setRestoreError(''); }}
               className="flex-1 py-2 text-[13px] font-bold transition-all"
               style={{
                 background: tab === t ? 'rgba(22,163,74,0.4)' : 'rgba(255,255,255,0.04)',
@@ -116,7 +153,7 @@ export function UpgradeModal({ onClose, onActivate }: UpgradeModalProps) {
           {tab === 'buy' && (
             <>
               <p className="text-[12px] text-white/40 text-center -mt-1">
-                We'll send your license key to your email after purchase.
+                Your license key will appear on screen after purchase — save it somewhere safe.
               </p>
               <input
                 type="email"
@@ -142,16 +179,47 @@ export function UpgradeModal({ onClose, onActivate }: UpgradeModalProps) {
 
           {tab === 'redeem' && (
             <>
-              <p className="text-[12px] text-white/40 text-center -mt-1">
-                Enter the license key from your purchase email.
-              </p>
               {redeemOk ? (
                 <div className="text-center py-4">
                   <div className="text-4xl mb-2">🎉</div>
                   <p className="text-green-400 font-black text-lg">Pro unlocked!</p>
                 </div>
+              ) : restoreMode ? (
+                <>
+                  <p className="text-[12px] text-white/40 text-center -mt-1">
+                    Enter the email you used when you paid — we'll look up your key automatically.
+                  </p>
+                  <input
+                    type="email"
+                    value={restoreEmail}
+                    onChange={(e) => setRestoreEmail(e.target.value)}
+                    placeholder="your@email.com"
+                    autoFocus
+                    className="w-full rounded-xl px-4 py-3 text-[16px] text-white placeholder-white/25 outline-none border border-white/20 focus:border-green-400 transition-colors"
+                    style={{ background: 'rgba(255,255,255,0.08)' }}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleRestore(); }}
+                  />
+                  {restoreError && <p className="text-red-400 text-[12px] -mt-1 text-center">{restoreError}</p>}
+                  <button
+                    onClick={handleRestore}
+                    disabled={restoring}
+                    className="w-full py-3.5 rounded-xl font-black text-[15px] text-white transition-all active:scale-95 disabled:opacity-60"
+                    style={{ background: 'linear-gradient(135deg,#16a34a,#15803d)', boxShadow: '0 4px 20px rgba(22,163,74,0.3)' }}
+                  >
+                    {restoring ? 'Looking up…' : 'Restore Pro Access →'}
+                  </button>
+                  <button
+                    onClick={() => { setRestoreMode(false); setRestoreError(''); }}
+                    className="text-white/30 text-[12px] text-center py-1"
+                  >
+                    ← I have my key
+                  </button>
+                </>
               ) : (
                 <>
+                  <p className="text-[12px] text-white/40 text-center -mt-1">
+                    Enter the license key from your purchase.
+                  </p>
                   <input
                     type="text"
                     value={key}
@@ -173,17 +241,25 @@ export function UpgradeModal({ onClose, onActivate }: UpgradeModalProps) {
                   >
                     {redeeming ? 'Verifying…' : 'Activate License'}
                   </button>
+                  <button
+                    onClick={() => { setRestoreMode(true); setRedeemError(''); }}
+                    className="text-white/40 text-[12px] text-center py-1 hover:text-white/60 transition-colors"
+                  >
+                    Don't have your key? Restore by email →
+                  </button>
                 </>
               )}
             </>
           )}
 
-          <button
-            onClick={onClose}
-            className="text-white/30 text-[12px] text-center py-1"
-          >
-            Maybe later
-          </button>
+          {!redeemOk && (
+            <button
+              onClick={onClose}
+              className="text-white/30 text-[12px] text-center py-1"
+            >
+              Maybe later
+            </button>
+          )}
         </div>
       </div>
     </div>
