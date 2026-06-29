@@ -1,3 +1,5 @@
+import { useCallback, useEffect, useRef, useState } from 'react';
+
 export interface AdConfig {
   type: 'placeholder' | 'image' | 'video';
   src?: string;
@@ -6,24 +8,108 @@ export interface AdConfig {
 }
 
 interface AdScreenProps {
-  countdown: number;
-  duration: number;
+  minDuration: number; // tier floor: 5s (Pro) or 10s (free)
   ad?: AdConfig;
+  onDone: () => void;
 }
 
-export function AdScreen({ countdown, duration, ad }: AdScreenProps) {
-  const pct = duration > 0 ? (countdown / duration) * 100 : 0;
+export function AdScreen({ minDuration, ad, onDone }: AdScreenProps) {
+  const isVideo = ad?.type === 'video' && !!ad.src;
+
+  const [totalDuration, setTotalDuration] = useState(minDuration);
+  const [countdown, setCountdown] = useState(minDuration);
+
+  // Always-current refs — safe to call from inside stale interval closures
+  const onDoneRef = useRef(onDone);
+  onDoneRef.current = onDone;
+
+  const isVideoRef = useRef(isVideo);
+  isVideoRef.current = isVideo;
+
+  const timerDoneRef = useRef(false);
+  const videoDoneRef = useRef(false);
+  const calledDoneRef = useRef(false);
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const videoFallbackRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // tryFinish reads from refs so it's always correct even from stale closures
+  const tryFinish = useCallback(() => {
+    if (calledDoneRef.current) return;
+    if (timerDoneRef.current && (!isVideoRef.current || videoDoneRef.current)) {
+      calledDoneRef.current = true;
+      if (videoFallbackRef.current) clearTimeout(videoFallbackRef.current);
+      onDoneRef.current();
+    }
+  }, []);
+
+  const startCountdown = useCallback((duration: number) => {
+    if (intervalRef.current) clearInterval(intervalRef.current);
+    let count = duration;
+    intervalRef.current = setInterval(() => {
+      count--;
+      setCountdown(Math.max(count, 0));
+      if (count <= 0) {
+        if (intervalRef.current) clearInterval(intervalRef.current);
+        timerDoneRef.current = true;
+        tryFinish();
+        // Safety net: if a video hasn't ended within 3 extra seconds, force dismiss
+        if (isVideoRef.current && !videoDoneRef.current) {
+          videoFallbackRef.current = setTimeout(() => {
+            videoDoneRef.current = true;
+            tryFinish();
+          }, 3000);
+        }
+      }
+    }, 1000);
+  }, [tryFinish]);
+
+  useEffect(() => {
+    timerDoneRef.current = false;
+    videoDoneRef.current = false;
+    calledDoneRef.current = false;
+    if (videoFallbackRef.current) clearTimeout(videoFallbackRef.current);
+    setTotalDuration(minDuration);
+    setCountdown(minDuration);
+    startCountdown(minDuration);
+    return () => {
+      if (intervalRef.current) clearInterval(intervalRef.current);
+      if (videoFallbackRef.current) clearTimeout(videoFallbackRef.current);
+    };
+  }, [minDuration, startCountdown]);
+
+  function handleLoadedMetadata(e: React.SyntheticEvent<HTMLVideoElement>) {
+    const vidDur = Math.ceil(e.currentTarget.duration);
+    if (vidDur > minDuration) {
+      setTotalDuration(vidDur);
+      setCountdown(vidDur);
+      startCountdown(vidDur);
+    }
+  }
+
+  function handleVideoEnded() {
+    videoDoneRef.current = true;
+    tryFinish();
+  }
+
+  function handleVideoError() {
+    // If the video fails to load or play, treat it as done so the timer alone decides
+    videoDoneRef.current = true;
+    tryFinish();
+  }
+
+  const pct = totalDuration > 0 ? (countdown / totalDuration) * 100 : 0;
 
   const content = (() => {
-    if (ad?.type === 'video' && ad.src) {
+    if (isVideo && ad?.src) {
       return (
         <video
           src={ad.src}
           autoPlay
-          muted
           playsInline
-          loop
           className="absolute inset-0 w-full h-full object-cover"
+          onLoadedMetadata={handleLoadedMetadata}
+          onEnded={handleVideoEnded}
+          onError={handleVideoError}
         />
       );
     }
