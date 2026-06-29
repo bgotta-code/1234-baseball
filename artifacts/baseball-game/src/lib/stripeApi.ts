@@ -34,3 +34,14 @@ export async function verifyLicenseKey(key: string): Promise<boolean> {
   const data = await res.json() as { valid: boolean };
   return data.valid;
 }
+
+export async function restoreLicenseByEmail(email: string): Promise<{ key: string } | { error: string }> {
+  const res = await fetch(`${BASE}/license/restore`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email }),
+  });
+  const data = await res.json() as { key?: string; error?: string };
+  if (!res.ok) return { error: data.error ?? 'No purchase found for that email address.' };
+  return { key: data.key! };
+}
