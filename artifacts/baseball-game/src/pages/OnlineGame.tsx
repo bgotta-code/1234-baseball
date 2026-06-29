@@ -267,6 +267,7 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
     const delay = walkoff ? 4000 : 2500;
     resultTimerRef.current = setTimeout(async () => {
       setLocalResult(null);
+      setReveal(null);
 
       if (atBatResult.type === 'side-retired') {
         const { newState, gameOver } = nextHalf(atBatResult.newState, { innings: setup.innings, isPaid });
@@ -341,6 +342,7 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
     const delay = la.walkoff ? 4000 : 2500;
     resultTimerRef.current = setTimeout(() => {
       setLocalResult(null);
+      setReveal(null);
       if (la.type === 'side-retired' && roomDataRef.current?.phase !== 'gameover') {
         startAd(() => {
           setSwitching(true);
