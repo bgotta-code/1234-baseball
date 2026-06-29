@@ -19,17 +19,18 @@ export function UpgradeModal({ onClose, onActivate }: UpgradeModalProps) {
   const [buying, setBuying] = useState(false);
   const [buyError, setBuyError] = useState('');
 
-  // Redeem tab — key entry mode
-  const [key, setKey] = useState('');
-  const [redeeming, setRedeeming] = useState(false);
-  const [redeemError, setRedeemError] = useState('');
-  const [redeemOk, setRedeemOk] = useState(false);
-
-  // Redeem tab — email restore mode
-  const [restoreMode, setRestoreMode] = useState(false);
+  // Redeem tab — email restore is the primary path (most users won't have their key)
+  const [restoreMode, setRestoreMode] = useState(true);
   const [restoreEmail, setRestoreEmail] = useState('');
   const [restoring, setRestoring] = useState(false);
   const [restoreError, setRestoreError] = useState('');
+
+  // Redeem tab — key entry fallback
+  const [key, setKey] = useState('');
+  const [redeeming, setRedeeming] = useState(false);
+  const [redeemError, setRedeemError] = useState('');
+
+  const [redeemOk, setRedeemOk] = useState(false);
 
   const handleBuy = async () => {
     if (!email.trim()) { setBuyError('Enter your email to receive the license key.'); return; }
@@ -73,7 +74,6 @@ export function UpgradeModal({ onClose, onActivate }: UpgradeModalProps) {
       setRestoreError(result.error);
       return;
     }
-    // Activate the recovered key
     const activation = await onActivate(result.key);
     setRestoring(false);
     if (activation.success) {
@@ -88,13 +88,6 @@ export function UpgradeModal({ onClose, onActivate }: UpgradeModalProps) {
     const clean = raw.toUpperCase().replace(/[^A-Z0-9]/g, '');
     const parts = [clean.slice(0, 4), clean.slice(4, 8), clean.slice(8, 12)].filter(Boolean);
     return parts.join('-');
-  };
-
-  const switchToRedeem = () => {
-    setTab('redeem');
-    setRestoreMode(false);
-    setRedeemError('');
-    setRestoreError('');
   };
 
   return (
@@ -137,14 +130,14 @@ export function UpgradeModal({ onClose, onActivate }: UpgradeModalProps) {
           {(['buy', 'redeem'] as const).map((t) => (
             <button
               key={t}
-              onClick={() => { setTab(t); setRestoreMode(false); setRedeemError(''); setRestoreError(''); }}
+              onClick={() => { setTab(t); setRedeemError(''); setRestoreError(''); }}
               className="flex-1 py-2 text-[13px] font-bold transition-all"
               style={{
                 background: tab === t ? 'rgba(22,163,74,0.4)' : 'rgba(255,255,255,0.04)',
                 color: tab === t ? '#fff' : 'rgba(255,255,255,0.4)',
               }}
             >
-              {t === 'buy' ? 'Buy $2.99' : 'I have a key'}
+              {t === 'buy' ? 'Buy $2.99' : 'Already paid?'}
             </button>
           ))}
         </div>
@@ -187,7 +180,7 @@ export function UpgradeModal({ onClose, onActivate }: UpgradeModalProps) {
               ) : restoreMode ? (
                 <>
                   <p className="text-[12px] text-white/40 text-center -mt-1">
-                    Enter the email you used when you paid — we'll look up your key automatically.
+                    Enter the email you used when you paid and we'll restore your access automatically.
                   </p>
                   <input
                     type="email"
@@ -210,9 +203,9 @@ export function UpgradeModal({ onClose, onActivate }: UpgradeModalProps) {
                   </button>
                   <button
                     onClick={() => { setRestoreMode(false); setRestoreError(''); }}
-                    className="text-white/30 text-[12px] text-center py-1"
+                    className="text-white/35 text-[12px] text-center py-1 hover:text-white/55 transition-colors"
                   >
-                    ← I have my key
+                    I have my license key →
                   </button>
                 </>
               ) : (
@@ -243,9 +236,9 @@ export function UpgradeModal({ onClose, onActivate }: UpgradeModalProps) {
                   </button>
                   <button
                     onClick={() => { setRestoreMode(true); setRedeemError(''); }}
-                    className="text-white/40 text-[12px] text-center py-1 hover:text-white/60 transition-colors"
+                    className="text-white/35 text-[12px] text-center py-1 hover:text-white/55 transition-colors"
                   >
-                    Don't have your key? Restore by email →
+                    ← Restore by email instead
                   </button>
                 </>
               )}
