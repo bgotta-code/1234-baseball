@@ -459,7 +459,9 @@ export function OnlineGame({ roomCode, role, setup, isPaid, onLeave }: OnlineGam
     : roomData.atBat.batterChoice !== null;
 
   // ── Game Over ──────────────────────────────────────────────────────────────
-  if (roomData.phase === 'gameover') {
+  // Don't switch to the gameover screen while a reveal is still on screen —
+  // both players should see the final play result before the game ends.
+  if (roomData.phase === 'gameover' && !localResult) {
     const [away, home] = gameState.scores;
     const tied = away === home;
     const hostWins = setup.hostRole === 'away' ? (away > home) : (home > away);
