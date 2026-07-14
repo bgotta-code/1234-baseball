@@ -30,7 +30,10 @@ export async function verifyLicenseKey(key: string): Promise<boolean> {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ key }),
   });
-  if (!res.ok) return false;
+  // Only a successful response with valid=false means the key is truly invalid.
+  // Rate limits (429), server errors (5xx), etc. should be treated as transient
+  // network failures — throw so the caller's .catch() keeps the stored key.
+  if (!res.ok) throw new Error(`HTTP ${res.status}`);
   const data = await res.json() as { valid: boolean };
   return data.valid;
 }
