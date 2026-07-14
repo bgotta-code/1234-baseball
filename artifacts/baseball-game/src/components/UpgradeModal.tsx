@@ -127,19 +127,27 @@ export function UpgradeModal({ onClose, onActivate }: UpgradeModalProps) {
 
         {/* Tabs */}
         <div className="mx-5 mb-3 flex rounded-xl overflow-hidden border border-white/15">
-          {(['buy', 'redeem'] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => { setTab(t); setRedeemError(''); setRestoreError(''); }}
-              className="flex-1 py-2 text-[13px] font-bold transition-all"
-              style={{
-                background: tab === t ? 'rgba(22,163,74,0.4)' : 'rgba(255,255,255,0.04)',
-                color: tab === t ? '#fff' : 'rgba(255,255,255,0.4)',
-              }}
-            >
-              {t === 'buy' ? 'Buy $2.99' : 'Already paid?'}
-            </button>
-          ))}
+          <button
+            onClick={() => { setTab('buy'); setRedeemError(''); setRestoreError(''); }}
+            className="flex-1 py-2 text-[13px] font-bold transition-all"
+            style={{
+              background: tab === 'buy' ? 'rgba(22,163,74,0.4)' : 'rgba(255,255,255,0.04)',
+              color: tab === 'buy' ? '#fff' : 'rgba(255,255,255,0.4)',
+            }}
+          >
+            Buy $2.99
+          </button>
+          <button
+            onClick={() => { setTab('redeem'); setRedeemError(''); setRestoreError(''); }}
+            className="flex-1 py-2 text-[13px] font-bold transition-all"
+            style={{
+              background: tab === 'redeem' ? 'rgba(251,191,36,0.25)' : 'rgba(255,255,255,0.04)',
+              color: tab === 'redeem' ? '#fbbf24' : 'rgba(251,191,36,0.65)',
+              borderLeft: '1px solid rgba(255,255,255,0.1)',
+            }}
+          >
+            Already paid?
+          </button>
         </div>
 
         <div className="px-5 pb-6 flex flex-col gap-3">
