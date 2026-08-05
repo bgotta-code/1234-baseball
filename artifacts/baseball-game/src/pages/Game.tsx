@@ -50,16 +50,14 @@ export function Game({ awayTeam, homeTeam, innings, isPaid, onNewGame }: GamePro
   const [reveal, setReveal] = useState<RevealInfo>(null);
   const [selectedNum, setSelectedNum] = useState<number | null>(null);
   const [muted, setMuted] = useState(isMuted);
-  const [adCountdown, setAdCountdown] = useState(15);
   const currentAd = useRandomAd();
   const [animRunners, setAnimRunners] = useState<Array<{ id: string; pos: number; maxPos: number }> | null>(null);
   const [homeFlashes, setHomeFlashes] = useState<Array<{ id: string; delay: number }>>([]);
   const [ballPos, setBallPos] = useState<{ x: number; y: number } | null>(null);
   const [confirmAbandon, setConfirmAbandon] = useState(false);
   const abandonTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const adTimerRef = useRef<ReturnType<typeof setInterval> | null>(null);
-  const adDurationRef = useRef(15);
   const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const postAdCallback = useRef<(() => void) | null>(null);
   const animTimersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
@@ -80,7 +78,6 @@ export function Game({ awayTeam, homeTeam, innings, isPaid, onNewGame }: GamePro
 
   useEffect(() => {
     return () => {
-      if (adTimerRef.current) clearInterval(adTimerRef.current);
       if (revealTimerRef.current) clearTimeout(revealTimerRef.current);
       animTimersRef.current.forEach(clearTimeout);
       ballTimersRef.current.forEach(clearTimeout);
@@ -169,22 +166,8 @@ export function Game({ awayTeam, homeTeam, innings, isPaid, onNewGame }: GamePro
   }, []);
 
   const startAd = useCallback((callback: () => void) => {
-    const adDuration = isPaid ? 5 : 10;
-    adDurationRef.current = adDuration;
     postAdCallback.current = callback;
-    setAdCountdown(adDuration);
     setScreen('ad');
-    if (adTimerRef.current) clearInterval(adTimerRef.current);
-    let count = adDuration;
-    adTimerRef.current = setInterval(() => {
-      count--;
-      setAdCountdown(count);
-      if (count <= 0) {
-        if (adTimerRef.current) clearInterval(adTimerRef.current);
-        setScreen('game');
-        postAdCallback.current?.();
-      }
-    }, 1000);
   }, []);
 
   const handleSelectNumber = (n: number) => {
@@ -289,7 +272,16 @@ export function Game({ awayTeam, homeTeam, innings, isPaid, onNewGame }: GamePro
 
   // ── AD SCREEN ────────────────────────────────────────────────
   if (screen === 'ad') {
-    return <AdScreen countdown={adCountdown} duration={adDurationRef.current} ad={currentAd} />;
+    return (
+      <AdScreen
+        minDuration={isPaid ? 5 : 10}
+        ad={currentAd}
+        onDone={() => {
+          setScreen('game');
+          postAdCallback.current?.();
+        }}
+      />
+    );
   }
 
   // ── GAME OVER SCREEN ─────────────────────────────────────────
@@ -564,11 +556,22 @@ export function Game({ awayTeam, homeTeam, innings, isPaid, onNewGame }: GamePro
             </div>
           ) : (
             <button
-              className="text-[9px] text-white/20 underline shrink-0 ml-2"
-              onClick={() => {
-                setConfirmAbandon(true);
-                if (abandonTimerRef.current) clearTimeout(abandonTimerRef.current);
-                abandonTimerRef.current = setTimeout(() => setConfirmAbandon(false), 4000);
+              className="text-[9px] text-white/20 underline shrink-0 ml-2 select-none"
+              onPointerDown={() => {
+                longPressTimerRef.current = setTimeout(() => {
+                  setConfirmAbandon(true);
+                  if (abandonTimerRef.current) clearTimeout(abandonTimerRef.current);
+                  abandonTimerRef.current = setTimeout(() => setConfirmAbandon(false), 4000);
+                }, 600);
+              }}
+              onPointerUp={() => {
+                if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+              }}
+              onPointerLeave={() => {
+                if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+              }}
+              onPointerCancel={() => {
+                if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
               }}
             >
               Start Over
