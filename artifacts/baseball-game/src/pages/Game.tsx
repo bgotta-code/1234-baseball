@@ -56,7 +56,6 @@ export function Game({ awayTeam, homeTeam, innings, isPaid, onNewGame }: GamePro
   const [ballPos, setBallPos] = useState<{ x: number; y: number } | null>(null);
   const [confirmAbandon, setConfirmAbandon] = useState(false);
   const abandonTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const longPressTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const revealTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const postAdCallback = useRef<(() => void) | null>(null);
@@ -556,22 +555,11 @@ export function Game({ awayTeam, homeTeam, innings, isPaid, onNewGame }: GamePro
             </div>
           ) : (
             <button
-              className="text-[9px] text-white/20 underline shrink-0 ml-2 select-none"
-              onPointerDown={() => {
-                longPressTimerRef.current = setTimeout(() => {
-                  setConfirmAbandon(true);
-                  if (abandonTimerRef.current) clearTimeout(abandonTimerRef.current);
-                  abandonTimerRef.current = setTimeout(() => setConfirmAbandon(false), 4000);
-                }, 600);
-              }}
-              onPointerUp={() => {
-                if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
-              }}
-              onPointerLeave={() => {
-                if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
-              }}
-              onPointerCancel={() => {
-                if (longPressTimerRef.current) clearTimeout(longPressTimerRef.current);
+              className="text-[9px] text-white/20 underline shrink-0 ml-2"
+              onClick={() => {
+                setConfirmAbandon(true);
+                if (abandonTimerRef.current) clearTimeout(abandonTimerRef.current);
+                abandonTimerRef.current = setTimeout(() => setConfirmAbandon(false), 4000);
               }}
             >
               Start Over
